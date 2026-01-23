@@ -1,0 +1,16 @@
+Sample Test Document for Upload
+
+This is a test document to verify the document upload functionality.
+
+Key Information:
+- Product: Azure AI Foundry Agent
+- Version: 1.0.0
+- Features: Chat interface, markdown support, document upload
+- Technology: ASP.NET Core 10, Azure AI Projects
+
+Test Data:
+1. First item
+2. Second item
+3. Third item
+
+This document should be successfully uploaded and processed by the AI agent.

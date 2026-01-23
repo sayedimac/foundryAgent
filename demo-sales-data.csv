@@ -1,0 +1,13 @@
+Month,Product,Units Sold,Revenue,Region
+January,Laptop,45,67500,North
+January,Desktop,32,48000,South
+January,Tablet,78,39000,East
+January,Phone,156,93600,West
+February,Laptop,52,78000,North
+February,Desktop,28,42000,South
+February,Tablet,85,42500,East
+February,Phone,172,103200,West
+March,Laptop,61,91500,North
+March,Desktop,35,52500,South
+March,Tablet,92,46000,East
+March,Phone,189,113400,West

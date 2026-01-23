@@ -12,6 +12,12 @@ builder.Services.AddOpenApi();
 builder.Services.Configure<FoundryOptions>(
     builder.Configuration.GetSection("Foundry"));
 
+// GitHub Copilot MCP client (JSON-RPC over HTTPS)
+builder.Services.AddHttpClient<CopilotMcpClient>();
+
+// Register MCP GitHub service
+builder.Services.AddSingleton<McpGitHubService>();
+
 // Register AgentService as singleton
 builder.Services.AddSingleton<AgentService>();
 
@@ -24,6 +30,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.UseAuthorization();
 app.MapControllers();
 

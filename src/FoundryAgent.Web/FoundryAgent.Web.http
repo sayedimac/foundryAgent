@@ -1,6 +1,24 @@
 @FoundryAgent.Web_HostAddress = http://localhost:5109
 
-GET {{FoundryAgent.Web_HostAddress}}/weatherforecast/
+# Test root endpoint
+GET {{FoundryAgent.Web_HostAddress}}/
 Accept: application/json
+
+###
+
+# Test OpenAPI endpoint
+GET {{FoundryAgent.Web_HostAddress}}/openapi/v1.json
+Accept: application/json
+
+###
+
+# Test chat endpoint
+POST {{FoundryAgent.Web_HostAddress}}/api/chat
+Content-Type: application/json
+
+{
+  "message": "Hello, how are you?",
+  "threadId": null
+}
 
 ###

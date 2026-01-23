@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Foundry Agent Chat</title>
+    <!-- Marked.js for Markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@14.1.2/marked.min.js"></script>
+    <!-- Highlight.js for code syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .chat-container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 800px;
+            height: 600px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .header-title {
+            flex: 1;
+            text-align: center;
+        }
+
+        #mcpButton {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid white;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        #mcpButton:hover {
+            background: white;
+            color: #667eea;
+        }
+
+        .mcp-panel {
+            display: none;
+            position: absolute;
+            top: 70px;
+            right: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            width: 400px;
+            max-height: 500px;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+
+        .mcp-panel.show {
+            display: block;
+        }
+
+        .mcp-tool {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mcp-tool:hover {
+            background: #f5f5f5;
+            border-color: #667eea;
+        }
+
+        .mcp-tool-name {
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 4px;
+        }
+
+        .mcp-tool-desc {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .close-panel {
+            float: right;
+            cursor: pointer;
+            font-size: 20px;
+            color: #999;
+        }
+
+        .close-panel:hover {
+            color: #333;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 16px;
+            display: flex;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            word-wrap: break-word;
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.agent .message-content {
+            background: white;
+            color: #333;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border-bottom-left-radius: 4px;
+        }
+
+        /* Markdown styling */
+        .message-content h1,
+        .message-content h2,
+        .message-content h3,
+        .message-content h4,
+        .message-content h5,
+        .message-content h6 {
+            margin-top: 16px;
+            margin-bottom: 8px;
+            font-weight: 600;
+            line-height: 1.25;
+        }
+
+        .message-content h1 {
+            font-size: 1.5em;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 8px;
+        }
+
+        .message-content h2 {
+            font-size: 1.3em;
+        }
+
+        .message-content h3 {
+            font-size: 1.1em;
+        }
+
+        .message-content p {
+            margin: 8px 0;
+            line-height: 1.6;
+        }
+
+        .message-content pre {
+            background: #1e1e1e;
+            border-radius: 6px;
+            padding: 12px;
+            overflow-x: auto;
+            margin: 12px 0;
+        }
+
+        .message-content code {
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .message-content pre code {
+            background: transparent;
+            padding: 0;
+            font-size: 0.85em;
+            color: #e6e6e6;
+        }
+
+        .message-content ul,
+        .message-content ol {
+            margin: 8px 0;
+            padding-left: 24px;
+        }
+
+        .message-content li {
+            margin: 4px 0;
+            line-height: 1.6;
+        }
+
+        .message-content blockquote {
+            border-left: 4px solid #667eea;
+            padding-left: 12px;
+            margin: 12px 0;
+            color: #666;
+            font-style: italic;
+        }
+
+        .message-content a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .message-content a:hover {
+            text-decoration: underline;
+        }
+
+        .message-content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 12px 0;
+        }
+
+        .message-content table th,
+        .message-content table td {
+            border: 1px solid #e0e0e0;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .message-content table th {
+            background: #f5f5f5;
+            font-weight: 600;
+        }
+
+        .message-content img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+        }
+
+        .message-content hr {
+            border: none;
+            border-top: 1px solid #e0e0e0;
+            margin: 16px 0;
+        }
+
+        .chat-input-container {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            gap: 12px;
+        }
+
+        #messageInput {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 24px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        #messageInput:focus {
+            border-color: #667eea;
+        }
+
+        #sendButton {
+            padding: 12px 28px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 24px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        #sendButton:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        #sendButton:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #667eea;
+            animation: pulse 1.4s infinite ease-in-out;
+            margin: 0 4px;
+        }
+
+        .loading:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .loading:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            80%,
+            100% {
+                transform: scale(0.8);
+                opacity: 0.5;
+            }
+
+            40% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 20px;
+            text-align: center;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        #attachButton {
+            padding: 12px;
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            border-radius: 24px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #attachButton:hover:not(:disabled) {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        #attachButton:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .attached-files {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 8px 20px;
+            background: white;
+        }
+
+        .attached-file {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: #f0f0f0;
+            border-radius: 16px;
+            font-size: 13px;
+            color: #333;
+        }
+
+        .attached-file-name {
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .remove-file {
+            cursor: pointer;
+            color: #c33;
+            font-weight: bold;
+            margin-left: 4px;
+        }
+
+        .remove-file:hover {
+            color: #a11;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="mcp-panel" id="mcpPanel">
+        <span class="close-panel" onclick="toggleMcpPanel()">×</span>
+        <h3 style="margin-bottom: 15px;">🔌 MCP Tools</h3>
+        <div id="mcpToolsList">
+            <p style="color: #999;">Loading available tools...</p>
+        </div>
+    </div>
+
+    <div class="chat-container">
+        <div class="chat-header">
+            <div class="header-title">🤖 Foundry Agent Chat</div>
+            <button id="mcpButton" onclick="toggleMcpPanel()">🔌 MCP</button>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+            <div class="message agent">
+                <div class="message-content">
+                    Hello! I'm your Foundry Agent. How can I help you today?
+                </div>
+            </div>
+        </div>
+        <div class="attached-files" id="attachedFiles" style="display: none;"></div>
+        <div class="chat-input-container">
+            <input type="file" id="fileInput" multiple accept=".txt,.pdf,.doc,.docx,.csv,.json,.md" />
+            <button id="attachButton" title="Attach file">📎</button>
+            <input type="text" id="messageInput" placeholder="Type your message here..." autocomplete="off" />
+            <button id="sendButton">Send</button>
+        </div>
+    </div>
+
+    <script>
+        // Configure marked with syntax highlighting
+        marked.setOptions({
+            highlight: function (code, lang) {
+                if (lang && hljs.getLanguage(lang)) {
+                    try {
+                        return hljs.highlight(code, { language: lang }).value;
+                    } catch (err) { }
+                }
+                return hljs.highlightAuto(code).value;
+            },
+            breaks: true,
+            gfm: true
+        });
+
+        const chatMessages = document.getElementById('chatMessages');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const fileInput = document.getElementById('fileInput');
+        const attachButton = document.getElementById('attachButton');
+        const attachedFilesContainer = document.getElementById('attachedFiles');
+        const mcpPanel = document.getElementById('mcpPanel');
+        const mcpToolsList = document.getElementById('mcpToolsList');
+        let threadId = null;
+        let attachedFiles = [];
+
+        // MCP Panel Management
+        function toggleMcpPanel() {
+            mcpPanel.classList.toggle('show');
+            if (mcpPanel.classList.contains('show')) {
+                loadMcpTools();
+            }
+        }
+
+        async function loadMcpTools() {
+            try {
+                mcpToolsList.innerHTML = '<p style="color: #999;">Loading...</p>';
+                const response = await fetch('/api/mcp/discover');
+                const data = await response.json();
+
+                if (data.result && data.result.tools) {
+                    displayMcpTools(data.result.tools);
+                } else {
+                    mcpToolsList.innerHTML = '<p style="color: #c33;">No tools found</p>';
+                }
+            } catch (error) {
+                console.error('Error loading MCP tools:', error);
+                mcpToolsList.innerHTML = '<p style="color: #c33;">Error loading tools</p>';
+            }
+        }
+
+        function displayMcpTools(tools) {
+            mcpToolsList.innerHTML = '';
+            tools.forEach(tool => {
+                const toolDiv = document.createElement('div');
+                toolDiv.className = 'mcp-tool';
+                toolDiv.onclick = () => useMcpTool(tool);
+
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'mcp-tool-name';
+                nameDiv.textContent = tool.name;
+
+                const descDiv = document.createElement('div');
+                descDiv.className = 'mcp-tool-desc';
+                descDiv.textContent = tool.description || 'No description';
+
+                toolDiv.appendChild(nameDiv);
+                toolDiv.appendChild(descDiv);
+                mcpToolsList.appendChild(toolDiv);
+            });
+        }
+
+        function useMcpTool(tool) {
+            const prompt = `Use the ${tool.name} tool. ${tool.description || ''}`;
+            messageInput.value = prompt;
+            toggleMcpPanel();
+            messageInput.focus();
+        }
+
+        function addMessage(content, isUser) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user' : 'agent'}`;
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+
+            if (isUser) {
+                // User messages display as plain text
+                contentDiv.textContent = content;
+            } else {
+                // Agent messages render as markdown
+                contentDiv.innerHTML = marked.parse(content);
+            }
+
+            messageDiv.appendChild(contentDiv);
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function addLoadingIndicator() {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message agent';
+            messageDiv.id = 'loadingIndicator';
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.innerHTML = '<span class="loading"></span><span class="loading"></span><span class="loading"></span>';
+
+            messageDiv.appendChild(contentDiv);
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function removeLoadingIndicator() {
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            if (loadingIndicator) {
+                loadingIndicator.remove();
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = message;
+            chatMessages.appendChild(errorDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            setTimeout(() => errorDiv.remove(), 5000);
+        }
+
+        function updateAttachedFilesDisplay() {
+            if (attachedFiles.length === 0) {
+                attachedFilesContainer.style.display = 'none';
+                attachedFilesContainer.innerHTML = '';
+                return;
+            }
+
+            attachedFilesContainer.style.display = 'flex';
+            attachedFilesContainer.innerHTML = '';
+
+            attachedFiles.forEach((file, index) => {
+                const fileDiv = document.createElement('div');
+                fileDiv.className = 'attached-file';
+
+                const fileName = document.createElement('span');
+                fileName.className = 'attached-file-name';
+                fileName.textContent = file.name;
+                fileName.title = file.name;
+
+                const removeBtn = document.createElement('span');
+                removeBtn.className = 'remove-file';
+                removeBtn.textContent = '×';
+                removeBtn.onclick = () => removeFile(index);
+
+                fileDiv.appendChild(fileName);
+                fileDiv.appendChild(removeBtn);
+                attachedFilesContainer.appendChild(fileDiv);
+            });
+        }
+
+        function removeFile(index) {
+            attachedFiles.splice(index, 1);
+            updateAttachedFilesDisplay();
+        }
+
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message && attachedFiles.length === 0) return;
+
+            // Display user message
+            let displayMessage = message;
+            if (attachedFiles.length > 0) {
+                const fileNames = attachedFiles.map(f => f.name).join(', ');
+                displayMessage = message ? `${message}\n📎 ${fileNames}` : `📎 ${fileNames}`;
+            }
+            addMessage(displayMessage, true);
+
+            messageInput.value = '';
+            sendButton.disabled = true;
+            messageInput.disabled = true;
+            attachButton.disabled = true;
+            addLoadingIndicator();
+
+            try {
+                const formData = new FormData();
+                formData.append('message', message || 'Please analyze the attached file(s).');
+                if (threadId) {
+                    formData.append('threadId', threadId);
+                }
+
+                // Add files to FormData
+                attachedFiles.forEach(file => {
+                    formData.append('files', file);
+                });
+
+                const response = await fetch('/api/chat/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                removeLoadingIndicator();
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                addMessage(data.response, false);
+
+                if (data.threadId) {
+                    threadId = data.threadId;
+                }
+
+                // Clear attached files after successful send
+                attachedFiles = [];
+                updateAttachedFilesDisplay();
+            } catch (error) {
+                removeLoadingIndicator();
+                console.error('Error:', error);
+                showError('Failed to send message. Please try again.');
+            } finally {
+                sendButton.disabled = false;
+                messageInput.disabled = false;
+                attachButton.disabled = false;
+                messageInput.focus();
+            }
+        }
+
+        attachButton.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length > 0) {
+                attachedFiles.push(...files);
+                updateAttachedFilesDisplay();
+                fileInput.value = ''; // Reset input to allow re-selecting the same file
+            }
+        });
+
+        sendButton.addEventListener('click', sendMessage);
+
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Focus input on load
+        messageInput.focus();
+    </script>
+</body>
+
+</html>

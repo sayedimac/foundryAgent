@@ -1,0 +1,11 @@
+{
+  "name": "foundry-agent-test",
+  "version": "1.0.0",
+  "description": "Playwright tests for Foundry Agent",
+  "scripts": {
+    "test": "node test-chat.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.48.0"
+  }
+}

@@ -12,3 +12,6 @@
 - Frontend: Razor Pages; use SignalR or SSE for streaming.
 
 ## Layout
+
+## Testing
+- You are going to use the  UI for web app (web browser) built into the VS Code editor and send some samlpe prompts to the app in the chat box when we test

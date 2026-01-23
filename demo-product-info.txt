@@ -1,0 +1,51 @@
+Product Catalog - Q1 2026
+
+LAPTOP SPECIFICATIONS:
+- Model: ProBook X1
+- Price: $1,500
+- Processor: Intel Core i7
+- RAM: 16GB DDR4
+- Storage: 512GB SSD
+- Display: 15.6" Full HD
+- Battery Life: 10 hours
+- Weight: 3.5 lbs
+
+DESKTOP SPECIFICATIONS:
+- Model: WorkStation Pro
+- Price: $1,500
+- Processor: Intel Core i9
+- RAM: 32GB DDR4
+- Storage: 1TB SSD + 2TB HDD
+- Graphics: NVIDIA RTX 4060
+- Monitor: 27" 4K included
+- Warranty: 3 years
+
+TABLET SPECIFICATIONS:
+- Model: TabletPro 12
+- Price: $500
+- Display: 12.9" Retina
+- Processor: A15 Bionic
+- Storage: 256GB
+- Battery Life: 12 hours
+- Weight: 1.4 lbs
+- 5G Connectivity
+
+PHONE SPECIFICATIONS:
+- Model: SmartPhone Elite
+- Price: $600
+- Display: 6.7" OLED
+- Camera: 108MP Triple Lens
+- Processor: Snapdragon 8 Gen 3
+- RAM: 12GB
+- Storage: 256GB
+- Battery: 5000mAh
+- 5G Support
+
+SALES NOTES:
+- All products come with a 30-day money-back guarantee
+- Free shipping on orders over $1,000
+- Extended warranty available for purchase
+- Volume discounts available for corporate clients
+- Q1 performance shows strong growth in all regions
+- West region leads in phone sales
+- North region shows highest laptop demand
