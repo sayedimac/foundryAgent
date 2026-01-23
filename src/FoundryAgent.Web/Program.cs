@@ -1,41 +1,43 @@
-using Azure.Identity;
-using Microsoft.Agents.AI;
-using Microsoft.Agents.AI.OpenAI;
-using OpenAI;
-using FoundryAgent.Web.Models;
-using FoundryAgent.Web.Services;
+using FoundryAgent.Web.Bots;
+using Microsoft.Bot.Builder;
+using Microsoft.Bot.Builder.Integration.AspNet.Core;
+using Microsoft.Bot.Connector.Authentication;
+using Microsoft.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.Configure<AzureOpenAIOptions>(builder.Configuration.GetSection("AzureOpenAI"));
-builder.Services.AddSingleton<AgentService>();
+// Add services to the container.
+builder.Services
+    .AddControllers()
+    .AddNewtonsoftJson();
 
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-builder.Services.AddCors();
+// Bot Framework configuration
+builder.Services.AddSingleton<BotFrameworkAuthentication>(sp =>
+{
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    return new ConfigurationBotFrameworkAuthentication(configuration);
+});
+
+builder.Services.AddSingleton<IBotFrameworkHttpAdapter>(sp =>
+{
+    var auth = sp.GetRequiredService<BotFrameworkAuthentication>();
+    var logger = sp.GetRequiredService<ILogger<CloudAdapter>>();
+    var adapter = new CloudAdapter(auth, logger);
+    adapter.OnTurnError = async (turnContext, exception) =>
+    {
+        logger.LogError(exception, "Unhandled error");
+        await turnContext.SendActivityAsync("The bot encountered an error or bug.");
+        await turnContext.SendActivityAsync("To continue to run this bot, please fix the bot source code.");
+    };
+    return adapter;
+});
+
+builder.Services.AddSingleton<IBot, EchoBot>();
 
 var app = builder.Build();
 
-app.UseDefaultFiles();
-app.UseStaticFiles();
-
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
-app.MapPost("/api/chat", async (ChatRequest request, AgentService agent, CancellationToken ct) =>
-{
-    if (string.IsNullOrWhiteSpace(request.Input))
-    {
-        return Results.BadRequest(new { error = "Input is required." });
-    }
-
-    var response = await agent.RunAsync(request.Input, ct);
-    return Results.Ok(new ChatResponse(response));
-})
-.WithName("Chat")
-.Produces<ChatResponse>();
+app.UseHttpsRedirection();
+app.UseAuthorization();
+app.MapControllers();
 
 app.Run();

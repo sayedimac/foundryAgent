@@ -1,0 +1,6 @@
+@FoundryAgent.Web_HostAddress = http://localhost:5109
+
+GET {{FoundryAgent.Web_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
