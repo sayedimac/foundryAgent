@@ -15,3 +15,5 @@
 
 ## Testing
 - You are going to use the  UI for web app (web browser) built into the VS Code editor and send some samlpe prompts to the app in the chat box when we test
+
+### Assume I have dotnet 10.0 and the correect version of node.js

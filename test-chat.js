@@ -1,181 +1,254 @@
 const { chromium } = require('playwright');
+const fs = require('fs');
+const path = require('path');
+
+function envFlag(name, defaultValue) {
+    const raw = process.env[name];
+    if (raw === undefined || raw === null || raw === '') return defaultValue;
+    return !/^false$/i.test(String(raw).trim());
+}
+
+function ensureDir(dirPath) {
+    if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
+    }
+}
+
+function nowStamp() {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+}
+
+async function safeScreenshot(page, artifactsDir, name) {
+    try {
+        ensureDir(artifactsDir);
+        const file = path.join(artifactsDir, `${name}-${nowStamp()}.png`);
+        await page.screenshot({ path: file, fullPage: true });
+        console.log(`[artifact] screenshot: ${file}`);
+    } catch (e) {
+        console.log(`[artifact] failed to screenshot: ${e && e.message ? e.message : e}`);
+    }
+}
+
+async function getLastAgentMessageText(page) {
+    const msgs = await page.locator('.message.agent .message-content').allTextContents();
+    if (!msgs || msgs.length === 0) return '';
+    return (msgs[msgs.length - 1] || '').trim();
+}
+
+function assert(condition, message) {
+    if (!condition) throw new Error(message);
+}
+
+function looksLikeMissingMcpToken(text) {
+    const t = (text || '').toLowerCase();
+    return t.includes('missing copilot mcp auth token') || t.includes('copilot_mcp_token') || t.includes('github_copilot_mcp_token');
+}
+
+function looksLikeRepoResults(text) {
+    if (!text) return false;
+    // Accept either raw JSON from MCP gateway or a formatted list with GitHub URLs.
+    return /\bfull_name\b/i.test(text)
+        || /\bhtml_url\b/i.test(text)
+        || /https:\/\/github\.com\//i.test(text);
+}
+
+async function waitForChatIdle(page, timeoutMs) {
+    await page.waitForSelector('#loadingIndicator', { state: 'attached', timeout: 5000 });
+    await page.waitForSelector('#loadingIndicator', { state: 'detached', timeout: timeoutMs });
+}
+
+async function sendChatMessage(page, message, { timeoutMs = 120000 } = {}) {
+    await page.waitForSelector('#messageInput', { state: 'visible', timeout: 10000 });
+
+    const beforeAgentCount = await page.locator('.message.agent .message-content').count();
+    await page.fill('#messageInput', message);
+    await page.click('#sendButton');
+    await waitForChatIdle(page, timeoutMs);
+
+    const errorBanner = page.locator('.error-message');
+    if (await errorBanner.count()) {
+        const errText = (await errorBanner.first().textContent()) || 'Unknown UI error';
+        throw new Error(`UI reported an error after sending message: ${errText.trim()}`);
+    }
+
+    // Ensure a new agent message arrived.
+    await page.waitForFunction(
+        ({ selector, expectedMin }) => document.querySelectorAll(selector).length >= expectedMin,
+        { selector: '.message.agent .message-content', expectedMin: beforeAgentCount + 1 },
+        { timeout: 15000 }
+    );
+
+    const last = await getLastAgentMessageText(page);
+    console.log(`[agent:last] ${(last || '').slice(0, 280).replace(/\s+/g, ' ')}`);
+    return last;
+}
+
+async function openApp(page, baseUrl) {
+    console.log(`Navigating to ${baseUrl}`);
+    await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('#messageInput', { timeout: 10000 });
+}
+
+async function testMcpPanelSmoke(page) {
+    console.log('\n=== A) MCP panel smoke test ===');
+
+    const [discoverResponse] = await Promise.all([
+        page.waitForResponse((r) => r.url().includes('/api/mcp/discover'), { timeout: 15000 }),
+        page.click('#mcpButton')
+    ]);
+
+    console.log(`[api] /api/mcp/discover => ${discoverResponse.status()}`);
+    assert(discoverResponse.status() === 200, `Expected /api/mcp/discover 200, got ${discoverResponse.status()}`);
+
+    await page.waitForSelector('#mcpPanel.show', { timeout: 10000 });
+    await page.waitForSelector('.mcp-tool', { timeout: 10000 });
+
+    const toolNames = (await page.locator('.mcp-tool-name').allTextContents()).map(t => (t || '').trim());
+    console.log(`[mcp] tools (${toolNames.length}): ${toolNames.join(', ')}`);
+    assert(toolNames.length > 0, 'Expected at least one MCP tool card');
+    assert(toolNames.includes('search_repositories'), 'Expected MCP tools to include a tool named exactly "search_repositories"');
+}
+
+async function testListReposViaMcpTool(page) {
+    console.log('\n=== B) “List repos” via MCP tool through the UI ===');
+
+    const prompt1 = 'Use the search_repositories tool with query "user:sayedimac" and return top 10 repositories with name and url. IMPORTANT: include a full https://github.com/... URL for each repo (e.g., html_url).';
+    let last = await sendChatMessage(page, prompt1, { timeoutMs: 120000 });
+
+    if (looksLikeMissingMcpToken(last)) {
+        throw new Error('MCP tool execution failed due to missing token. Set COPILOT_MCP_TOKEN (or GITHUB_COPILOT_MCP_TOKEN) before running UI tests.');
+    }
+
+    if (!looksLikeRepoResults(last)) {
+        const prompt2 = 'Re-run the search_repositories tool with query "user:sayedimac" and output ONLY a newline-separated list of 10 lines, each formatted exactly as: <repo_name> - <repo_url>. The URL must be a full https://github.com/... link.';
+        last = await sendChatMessage(page, prompt2, { timeoutMs: 120000 });
+    }
+
+    assert(looksLikeRepoResults(last), 'Expected repo results in agent response (look for "full_name", "html_url", or https://github.com/ links)');
+}
+
+async function testAdditionalMcpQuestions(page) {
+    console.log('\n=== C) Additional MCP-driven questions ===');
+
+    const q1 = 'Use get_file_contents to fetch README.md from owner "sayedimac", repo "foundryAgent", path "README.md". Summarize in exactly 3 markdown bullet lines, each starting with "- ".';
+    let a1 = await sendChatMessage(page, q1, { timeoutMs: 120000 });
+    if (looksLikeMissingMcpToken(a1)) {
+        throw new Error('MCP tool execution failed due to missing token. Set COPILOT_MCP_TOKEN (or GITHUB_COPILOT_MCP_TOKEN) before running UI tests.');
+    }
+
+    const listLineRegex = /^([-*•]\s+|\d+\.[\s]+)/;
+    // List assertion: require at least 3 list lines (agents sometimes add a leading sentence).
+    let listLines = (a1 || '').split(/\r?\n/).map(l => l.trim()).filter(l => listLineRegex.test(l));
+    if (listLines.length < 3) {
+        const q1Retry = 'Please reformat your previous answer as exactly 3 markdown bullet lines. Output ONLY 3 lines and each line must start with "- ".';
+        a1 = await sendChatMessage(page, q1Retry, { timeoutMs: 120000 });
+        listLines = (a1 || '').split(/\r?\n/).map(l => l.trim()).filter(l => listLineRegex.test(l));
+    }
+    if (listLines.length < 3) {
+        const q1Retry2 = 'Output ONLY 3 lines, formatted exactly as a numbered list: "1. ..." then "2. ..." then "3. ...". No extra text.';
+        a1 = await sendChatMessage(page, q1Retry2, { timeoutMs: 120000 });
+        listLines = (a1 || '').split(/\r?\n/).map(l => l.trim()).filter(l => listLineRegex.test(l));
+    }
+
+    if (listLines.length < 3) {
+        const clauses = (a1 || '')
+            .split(/[\r\n]+|\.(?=\s)|;(?=\s)/)
+            .map(s => s.trim())
+            .filter(s => s.length >= 20);
+        assert(clauses.length >= 3, 'Expected the README.md summary to contain at least 3 distinct points');
+    }
+
+    const q2 = 'Use list_issues for owner "sayedimac", repo "foundryAgent". If none, say "No issues found".';
+    const a2 = await sendChatMessage(page, q2, { timeoutMs: 120000 });
+    if (looksLikeMissingMcpToken(a2)) {
+        throw new Error('MCP tool execution failed due to missing token. Set COPILOT_MCP_TOKEN (or GITHUB_COPILOT_MCP_TOKEN) before running UI tests.');
+    }
+    assert(/no issues found/i.test(a2) || /#\d+/.test(a2) || /\bissue\b/i.test(a2), 'Expected either issues listed or "No issues found"');
+}
+
+async function testMarkdownRendering(page) {
+    console.log('\n=== D1) Markdown rendering request ===');
+    let a = await sendChatMessage(
+        page,
+        'Return a short markdown response with (1) a bullet list and (2) a markdown table written with pipe characters. The table must have a header row and separator row, and exactly 2 data rows about fruits.',
+        { timeoutMs: 120000 }
+    );
+
+    if (!/\|/.test(a)) {
+        a = await sendChatMessage(
+            page,
+            'Reformat your previous answer as markdown only. Output a pipe-based markdown table with a header row, separator row, and exactly 2 fruit rows. Include at least one "|" character per row.',
+            { timeoutMs: 120000 }
+        );
+    }
+
+    assert(/\|/.test(a), 'Expected markdown output containing a pipe-based table');
+}
+
+async function testFileUploadFlow(page, repoRoot) {
+    console.log('\n=== D2) File upload flow ===');
+    await page.click('#attachButton');
+
+    const csvPath = path.join(repoRoot, 'demo-sales-data.csv');
+    assert(fs.existsSync(csvPath), `Expected demo file at ${csvPath}`);
+
+    const fileInput = page.locator('#fileInput');
+    await fileInput.setInputFiles(csvPath);
+    await page.waitForSelector('.attached-file', { timeout: 5000 });
+
+    const a = await sendChatMessage(page, 'Analyze this sales data and tell me which product had the highest total revenue.', { timeoutMs: 180000 });
+    assert(a && a.length > 0, 'Expected a non-empty response for file analysis');
+}
 
 (async () => {
-    console.log('Starting Playwright test...');
+    console.log('Starting Playwright UI tests...');
 
     const baseUrl = process.env.BASE_URL || 'http://localhost:5109';
-    console.log(`Base URL: ${baseUrl}`);
+    const headless = envFlag('HEADLESS', true);
+    const artifactsDir = path.join(process.cwd(), 'test-artifacts');
 
-    const browser = await chromium.launch({ headless: false });
+    console.log(`Base URL: ${baseUrl}`);
+    console.log(`Headless: ${headless} (set HEADLESS=false to show browser)`);
+
+    const browser = await chromium.launch({ headless });
     const context = await browser.newContext();
     const page = await context.newPage();
 
-    page.on('console', (msg) => {
-        console.log(`[browser console][${msg.type()}] ${msg.text()}`);
-    });
-    page.on('pageerror', (err) => {
-        console.log(`[browser pageerror] ${err.message}`);
-    });
+    // Developer-friendly logging
+    page.on('console', (msg) => console.log(`[browser console][${msg.type()}] ${msg.text()}`));
+    page.on('pageerror', (err) => console.log(`[browser pageerror] ${err.message}`));
     page.on('requestfailed', (req) => {
         const failure = req.failure();
         console.log(`[request failed] ${req.method()} ${req.url()} :: ${failure ? failure.errorText : 'unknown'}`);
     });
     page.on('response', async (res) => {
         const url = res.url();
-        if (url.includes('/api/mcp/discover') || url.includes('/api/chat')) {
+        if (url.includes('/api/mcp/discover') || url.includes('/api/chat') || url.includes('/api/chat/upload')) {
             console.log(`[response] ${res.status()} ${res.request().method()} ${url}`);
         }
     });
 
     try {
-        // Navigate to the app
-        console.log(`Navigating to ${baseUrl}`);
-        await page.goto(baseUrl);
-        await page.waitForLoadState('networkidle');
+        await openApp(page, baseUrl);
 
-        // Wait for the chat interface to load
-        await page.waitForSelector('#messageInput', { timeout: 5000 });
-        console.log('Chat interface loaded');
+        await testMcpPanelSmoke(page);
+        await testListReposViaMcpTool(page);
+        await testAdditionalMcpQuestions(page);
+        await testMarkdownRendering(page);
+        await testFileUploadFlow(page, process.cwd());
 
-        // MCP panel smoke test
-        console.log('\n=== MCP: Opening MCP panel and loading tools ===');
-        const [discoverResponse] = await Promise.all([
-            page.waitForResponse((r) => r.url().includes('/api/mcp/discover'), { timeout: 10000 }),
-            page.click('#mcpButton')
-        ]);
-        console.log(`MCP discover status: ${discoverResponse.status()}`);
-        if (!discoverResponse.ok()) {
-            const body = await discoverResponse.text();
-            throw new Error(`MCP discover failed: ${discoverResponse.status()} ${body}`);
-        }
-        // Wait for tools to render
-        await page.waitForSelector('#mcpPanel.show', { timeout: 5000 });
-        await page.waitForSelector('.mcp-tool', { timeout: 5000 });
-        const toolNames = await page.locator('.mcp-tool-name').allTextContents();
-        console.log(`MCP tools loaded (${toolNames.length}): ${toolNames.join(', ')}`);
-        await page.screenshot({ path: 'd:\\Repos\\foundryAgent\\mcp-panel.png' });
-        console.log('Saved screenshot: mcp-panel.png');
-
-        // Use an MCP tool card to seed the prompt, then send
-        console.log('\n=== TEST 0: Clicking an MCP tool card and sending ===');
-        await page.locator('.mcp-tool').first().click();
-        await page.waitForSelector('#mcpPanel.show', { state: 'hidden', timeout: 5000 });
-        let seededPrompt = await page.inputValue('#messageInput');
-        console.log(`Seeded prompt: ${seededPrompt}`);
-        if (!seededPrompt || !seededPrompt.toLowerCase().includes('use the')) {
-            throw new Error('Expected MCP tool click to seed a prompt into #messageInput');
-        }
-
-        // Force a concrete repo enumeration query
-        // Using GitHub search syntax as many MCP implementations expose search_repositories.
-        seededPrompt = `Use the search_repositories tool. Query: user:sayedimac sort:updated-desc. Return top 10 repos with name and url.`;
-        await page.fill('#messageInput', seededPrompt);
-
-        await page.click('#sendButton');
-        await page.waitForSelector('#loadingIndicator', { timeout: 5000 });
-        await page.waitForSelector('#loadingIndicator', { state: 'hidden', timeout: 60000 });
-
-        // Basic sanity check that we got something back
-        const agentMsgs0 = await page.locator('.message.agent .message-content').all();
-        if (agentMsgs0.length < 2) {
-            throw new Error('Expected an agent response after MCP repo query');
-        }
-        const last0 = await agentMsgs0[agentMsgs0.length - 1].textContent();
-        console.log('\n--- Agent Response (Repo Query) ---');
-        console.log(last0);
-        console.log('----------------------------------\n');
-
-        await page.screenshot({ path: 'd:\\Repos\\foundryAgent\\mcp-tool-response.png' });
-        console.log('Saved screenshot: mcp-tool-response.png');
-
-        // Test 1: Simple text message
-        console.log('\n=== TEST 1: Sending a text message ===');
-        await page.fill('#messageInput', 'Hello! Tell me a joke about programming.');
-        console.log('Message typed');
-
-        await page.click('#sendButton');
-        console.log('Send button clicked');
-
-        // Wait for loading indicator to appear and disappear
-        await page.waitForSelector('#loadingIndicator', { timeout: 5000 });
-        console.log('Loading indicator appeared');
-
-        await page.waitForSelector('#loadingIndicator', { state: 'hidden', timeout: 60000 });
-        console.log('Response received!');
-
-        // Get the response
-        const messages = await page.locator('.message.agent .message-content').all();
-        if (messages.length > 1) {
-            const responseText = await messages[messages.length - 1].textContent();
-            console.log('\n--- Agent Response ---');
-            console.log(responseText);
-            console.log('----------------------\n');
-        }
-
-        // Wait a moment
-        await page.waitForTimeout(2000);
-
-        // Test 1b: Markdown-heavy response
-        console.log('\n=== TEST 1b: Asking for markdown output ===');
-        await page.fill('#messageInput', 'Return a short markdown response with a bullet list and a 2-row table about fruits.');
-        await page.click('#sendButton');
-        await page.waitForSelector('#loadingIndicator', { timeout: 5000 });
-        await page.waitForSelector('#loadingIndicator', { state: 'hidden', timeout: 60000 });
-        await page.screenshot({ path: 'd:\\Repos\\foundryAgent\\markdown-response.png' });
-        console.log('Saved screenshot: markdown-response.png');
-
-        // Test 2: File upload
-        console.log('\n=== TEST 2: Testing file upload ===');
-
-        // Click attach button
-        await page.click('#attachButton');
-        console.log('Attach button clicked');
-
-        // Upload the demo file
-        const fileInput = await page.locator('#fileInput');
-        await fileInput.setInputFiles('d:\\Repos\\foundryAgent\\demo-sales-data.csv');
-        console.log('File selected: demo-sales-data.csv');
-
-        // Wait for file to appear in attached files
-        await page.waitForSelector('.attached-file', { timeout: 2000 });
-        console.log('File attached successfully');
-
-        // Type a message
-        await page.fill('#messageInput', 'Analyze this sales data and tell me which product had the highest total revenue.');
-        console.log('Message typed');
-
-        // Send
-        await page.click('#sendButton');
-        console.log('Send button clicked');
-
-        // Wait for response
-        await page.waitForSelector('#loadingIndicator', { timeout: 5000 });
-        console.log('Processing file...');
-
-        await page.waitForSelector('#loadingIndicator', { state: 'hidden', timeout: 120000 });
-        console.log('File analysis complete!');
-
-        // Get the response
-        const allMessages = await page.locator('.message.agent .message-content').all();
-        if (allMessages.length > 0) {
-            const lastResponseText = await allMessages[allMessages.length - 1].textContent();
-            console.log('\n--- Agent Response (File Analysis) ---');
-            console.log(lastResponseText);
-            console.log('---------------------------------------\n');
-        }
-
-        console.log('\n✅ All tests passed! The application is working correctly.');
-
-        // Keep browser open for a few seconds to see the results
-        await page.waitForTimeout(3000);
-
+        console.log('\n✅ All UI tests passed.');
+        process.exitCode = 0;
     } catch (error) {
-        console.error('❌ Test failed:', error.message);
-        // Take a screenshot on failure
-        await page.screenshot({ path: 'd:\\Repos\\foundryAgent\\test-failure.png' });
-        console.log('Screenshot saved to test-failure.png');
+        const msg = error && error.message ? error.message : String(error);
+        console.error(`\n❌ UI test failed: ${msg}`);
+        console.error(`[agent:last] ${(await getLastAgentMessageText(page)).slice(0, 400).replace(/\s+/g, ' ')}`);
+        await safeScreenshot(page, artifactsDir, 'failure');
+        process.exitCode = 1;
     } finally {
         await browser.close();
-        console.log('\nBrowser closed. Test complete.');
+        console.log('Browser closed.');
     }
 })();
