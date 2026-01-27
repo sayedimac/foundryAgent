@@ -5,14 +5,28 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <EnablePreviewFeatures>true</EnablePreviewFeatures>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Azure.AI.Agents.Persistent" Version="1.1.0" />
+    <!-- Azure AI Foundry SDK - Core -->
     <PackageReference Include="Azure.AI.Projects" Version="1.2.0-beta.5" />
     <PackageReference Include="Azure.Identity" Version="1.17.1" />
-    <PackageReference Include="Markdig" Version="0.44.0" />
+    
+    <!-- Microsoft Agent Framework (recommended for building agents) -->
     <PackageReference Include="Microsoft.Agents.AI.AzureAI" Version="1.0.0-preview.260121.1" />
+    
+    <!-- OpenTelemetry for observability -->
+    <PackageReference Include="OpenTelemetry" Version="1.13.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.13.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.13.0" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.13.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.13.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.13.0" />
+    
+    <!-- Web/API dependencies -->
+    <PackageReference Include="Markdig" Version="0.44.0" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="10.0.2" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.2" />
   </ItemGroup>

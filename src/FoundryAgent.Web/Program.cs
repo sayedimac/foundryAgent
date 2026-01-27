@@ -12,14 +12,18 @@ builder.Services.AddOpenApi();
 builder.Services.Configure<FoundryOptions>(
     builder.Configuration.GetSection("Foundry"));
 
-// GitHub Copilot MCP client (JSON-RPC over HTTPS)
-builder.Services.AddHttpClient<CopilotMcpClient>();
+// Add OpenTelemetry tracing for observability
+builder.Services.AddFoundryTelemetry(builder.Configuration);
 
-// Register MCP GitHub service
+// Register the modern agent service (uses AIProjectClient)
+builder.Services.AddSingleton<ModernAgentService>();
+
+// Legacy services (kept for backward compatibility)
+builder.Services.AddHttpClient<CopilotMcpClient>();
 builder.Services.AddSingleton<McpGitHubService>();
 
-// Register AgentService as singleton
-builder.Services.AddSingleton<AgentService>();
+// Health checks
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
@@ -34,5 +38,11 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHealthChecks("/health");
+
+// Log startup information
+var logger = app.Services.GetRequiredService<ILogger<Program>>();
+logger.LogInformation("Foundry Agent Demo starting...");
+logger.LogInformation("Environment: {Environment}", app.Environment.EnvironmentName);
 
 app.Run();
