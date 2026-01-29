@@ -23,7 +23,13 @@ public class ChatRequest
 
     /// <summary>
     /// Optional agent type override for this request.
-    /// Supported values: "default", "code-interpreter", "bing-search", "ai-search"
+    /// Supported values: "default", "code-interpreter", "bing-search", "ai-search", "mcp"
     /// </summary>
     public string? AgentType { get; set; }
+
+    /// <summary>
+    /// Whether to automatically approve MCP tool calls.
+    /// Only applies when AgentType is "mcp".
+    /// </summary>
+    public bool AutoApproveMcpTools { get; set; } = true;
 }

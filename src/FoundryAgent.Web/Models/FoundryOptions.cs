@@ -60,4 +60,46 @@ public class FoundryOptions
     /// If set, traces will be exported to Application Insights.
     /// </summary>
     public string? ApplicationInsightsConnectionString { get; set; }
+
+    /// <summary>
+    /// MCP (Model Context Protocol) server configurations.
+    /// </summary>
+    public McpServerConfig[] McpServers { get; set; } = [];
+}
+
+/// <summary>
+/// Configuration for an MCP server connection.
+/// </summary>
+public class McpServerConfig
+{
+    /// <summary>
+    /// Unique label for this MCP server (e.g., "github", "microsoft-learn").
+    /// </summary>
+    public string ServerLabel { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The MCP server URL endpoint.
+    /// </summary>
+    public string ServerUrl { get; set; } = string.Empty;
+
+    /// <summary>
+    /// When to require approval for MCP tool calls: "always", "never", or specific tool names.
+    /// </summary>
+    public string RequireApproval { get; set; } = "always";
+
+    /// <summary>
+    /// Optional list of allowed tool names from this MCP server.
+    /// If empty, all tools are allowed.
+    /// </summary>
+    public string[] AllowedTools { get; set; } = [];
+
+    /// <summary>
+    /// Optional custom headers to send with MCP requests (e.g., authentication).
+    /// </summary>
+    public Dictionary<string, string> Headers { get; set; } = new();
+
+    /// <summary>
+    /// Whether this MCP server is enabled.
+    /// </summary>
+    public bool Enabled { get; set; } = true;
 }

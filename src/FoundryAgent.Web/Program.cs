@@ -22,6 +22,9 @@ builder.Services.AddFoundryTelemetry(builder.Configuration);
 // Register the modern agent service (uses AIProjectClient - custom C# tools)
 builder.Services.AddSingleton<ModernAgentService>();
 
+// Register the MCP agent service (uses Model Context Protocol servers)
+builder.Services.AddSingleton<McpAgentService>();
+
 // Register the hosted agent service (uses Responses API - portal-configured tools)
 builder.Services.AddHttpClient<HostedAgentService>();
 
