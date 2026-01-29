@@ -101,7 +101,7 @@ public class McpAgentService
         {
             // Create MCP tools from configuration
             var mcpTools = CreateMcpTools();
-            
+
             if (mcpTools.Count == 0)
             {
                 return new ChatResponse
