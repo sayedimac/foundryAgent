@@ -36,10 +36,13 @@ public class AgentsController : ControllerBase
             capabilities = _agentService.GetCapabilities(),
             endpoints = new[]
             {
-                new { method = "POST", path = "/api/chat", description = "Send a message to the agent" },
-                new { method = "POST", path = "/api/chat/stream", description = "Stream a response from the agent" },
-                new { method = "POST", path = "/api/chat/upload", description = "Send files to the agent" },
-                new { method = "GET", path = "/api/chat/capabilities", description = "Get agent capabilities" },
+                new { method = "POST", path = "/api/chat", description = "Send a message to the SDK agent (custom C# tools)" },
+                new { method = "POST", path = "/api/chat/stream", description = "Stream a response from the SDK agent" },
+                new { method = "POST", path = "/api/chat/upload", description = "Send files to the SDK agent" },
+                new { method = "GET", path = "/api/chat/capabilities", description = "Get SDK agent capabilities" },
+                new { method = "POST", path = "/api/hosted-agent", description = "Send a message to the hosted agent (Bing, Code Interpreter)" },
+                new { method = "POST", path = "/api/hosted-agent/stream", description = "Stream a response from the hosted agent" },
+                new { method = "GET", path = "/api/hosted-agent", description = "Get hosted agent information" },
                 new { method = "GET", path = "/api/agents", description = "Get agent information" },
                 new { method = "GET", path = "/api/mcp/discover", description = "Discover MCP tools" },
                 new { method = "GET", path = "/health", description = "Health check endpoint" }

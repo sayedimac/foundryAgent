@@ -71,6 +71,42 @@
             color: #667eea;
         }
 
+        .agent-selector {
+            display: flex;
+            gap: 8px;
+        }
+
+        .agent-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .agent-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: white;
+        }
+
+        .agent-btn.active {
+            background: white;
+            color: #667eea;
+            border-color: white;
+            font-weight: 600;
+        }
+
+        .agent-indicator {
+            font-size: 12px;
+            padding: 4px 10px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            margin-left: 10px;
+        }
+
         .mcp-panel {
             display: none;
             position: absolute;
@@ -453,7 +489,19 @@
 
     <div class="chat-container">
         <div class="chat-header">
-            <div class="header-title">🤖 Foundry Agent Chat</div>
+            <div class="agent-selector">
+                <button id="sdkAgentBtn" class="agent-btn active" onclick="selectAgent('sdk')" title="Custom C# tools">
+                    🛠️ SDK Agent
+                </button>
+                <button id="hostedAgentBtn" class="agent-btn" onclick="selectAgent('hosted')"
+                    title="Bing, Code Interpreter">
+                    ☁️ Hosted Agent
+                </button>
+            </div>
+            <div class="header-title">
+                🤖 Foundry Agent Chat
+                <span class="agent-indicator" id="agentIndicator">SDK Mode</span>
+            </div>
             <button id="mcpButton" onclick="toggleMcpPanel()">🔌 MCP</button>
         </div>
         <div class="chat-messages" id="chatMessages">
@@ -495,8 +543,54 @@
         const attachedFilesContainer = document.getElementById('attachedFiles');
         const mcpPanel = document.getElementById('mcpPanel');
         const mcpToolsList = document.getElementById('mcpToolsList');
+        const sdkAgentBtn = document.getElementById('sdkAgentBtn');
+        const hostedAgentBtn = document.getElementById('hostedAgentBtn');
+        const agentIndicator = document.getElementById('agentIndicator');
+
         let threadId = null;
+        let previousResponseId = null; // For hosted agent conversation continuity
         let attachedFiles = [];
+        let currentAgentMode = 'sdk'; // 'sdk' or 'hosted'
+
+        // Agent Selection
+        function selectAgent(mode) {
+            currentAgentMode = mode;
+
+            // Update button states
+            sdkAgentBtn.classList.toggle('active', mode === 'sdk');
+            hostedAgentBtn.classList.toggle('active', mode === 'hosted');
+
+            // Update indicator
+            agentIndicator.textContent = mode === 'sdk' ? 'SDK Mode' : 'Hosted Mode';
+
+            // Reset conversation state when switching agents
+            threadId = null;
+            previousResponseId = null;
+
+            // Show info message
+            const modeInfo = mode === 'sdk'
+                ? '🛠️ Switched to SDK Agent - Custom C# function tools (Weather, Calculator, etc.)'
+                : '☁️ Switched to Hosted Agent - Bing grounding, Code Interpreter, Azure AI Search';
+            addSystemMessage(modeInfo);
+
+            console.log('Agent mode:', mode);
+        }
+
+        function addSystemMessage(text) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message agent';
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.style.background = '#e8f4fd';
+            contentDiv.style.fontStyle = 'italic';
+            contentDiv.style.fontSize = '13px';
+            contentDiv.textContent = text;
+
+            messageDiv.appendChild(contentDiv);
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
 
         // MCP Panel Management
         function toggleMcpPanel() {
@@ -656,33 +750,75 @@
             addLoadingIndicator();
 
             try {
-                const formData = new FormData();
-                formData.append('message', message || 'Please analyze the attached file(s).');
-                if (threadId) {
-                    formData.append('threadId', threadId);
-                }
+                let data;
 
-                // Add files to FormData
-                attachedFiles.forEach(file => {
-                    formData.append('files', file);
-                });
+                if (currentAgentMode === 'hosted') {
+                    // Call the hosted agent API
+                    const response = await fetch('/api/hosted-agent', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            message: message || 'Please analyze the attached file(s).',
+                            previousResponseId: previousResponseId
+                        })
+                    });
 
-                const response = await fetch('/api/chat/upload', {
-                    method: 'POST',
-                    body: formData
-                });
+                    removeLoadingIndicator();
 
-                removeLoadingIndicator();
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({}));
+                        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+                    }
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+                    data = await response.json();
 
-                const data = await response.json();
-                addMessage(data.response, false);
+                    // Store response ID for conversation continuity
+                    if (data.threadId) {
+                        previousResponseId = data.threadId;
+                    }
 
-                if (data.threadId) {
-                    threadId = data.threadId;
+                    // Format response with citations if available
+                    let responseText = data.response;
+                    if (data.citations && data.citations.length > 0) {
+                        responseText += '\n\n**Sources:**\n';
+                        data.citations.forEach((c, i) => {
+                            responseText += `${i + 1}. [${c.title || 'Source'}](${c.url})\n`;
+                        });
+                    }
+
+                    addMessage(responseText, false);
+                } else {
+                    // Call the SDK agent API (existing behavior)
+                    const formData = new FormData();
+                    formData.append('message', message || 'Please analyze the attached file(s).');
+                    if (threadId) {
+                        formData.append('threadId', threadId);
+                    }
+
+                    // Add files to FormData
+                    attachedFiles.forEach(file => {
+                        formData.append('files', file);
+                    });
+
+                    const response = await fetch('/api/chat/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    removeLoadingIndicator();
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    data = await response.json();
+                    addMessage(data.response, false);
+
+                    if (data.threadId) {
+                        threadId = data.threadId;
+                    }
                 }
 
                 // Clear attached files after successful send
@@ -691,7 +827,7 @@
             } catch (error) {
                 removeLoadingIndicator();
                 console.error('Error:', error);
-                showError('Failed to send message. Please try again.');
+                showError(`Failed to send message: ${error.message}`);
             } finally {
                 sendButton.disabled = false;
                 messageInput.disabled = false;

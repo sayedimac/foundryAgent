@@ -8,15 +8,22 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
 
-// Configure Foundry options
+// Configure Foundry options for SDK-based agent
 builder.Services.Configure<FoundryOptions>(
     builder.Configuration.GetSection("Foundry"));
+
+// Configure Hosted Agent options for pre-deployed agents
+builder.Services.Configure<HostedAgentOptions>(
+    builder.Configuration.GetSection("HostedAgent"));
 
 // Add OpenTelemetry tracing for observability
 builder.Services.AddFoundryTelemetry(builder.Configuration);
 
-// Register the modern agent service (uses AIProjectClient)
+// Register the modern agent service (uses AIProjectClient - custom C# tools)
 builder.Services.AddSingleton<ModernAgentService>();
+
+// Register the hosted agent service (uses Responses API - portal-configured tools)
+builder.Services.AddHttpClient<HostedAgentService>();
 
 // Legacy services (kept for backward compatibility)
 builder.Services.AddHttpClient<CopilotMcpClient>();
