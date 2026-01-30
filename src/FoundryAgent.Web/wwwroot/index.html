@@ -591,12 +591,21 @@
         function selectAgent(mode) {
             currentAgentMode = mode;
 
+            // Get elements (in case called before DOMContentLoaded)
+            const githubBtn = githubAgentBtn || document.getElementById('githubAgentBtn');
+            const travelBtn = travelAgentBtn || document.getElementById('travelAgentBtn');
+            const indicator = agentIndicator || document.getElementById('agentIndicator');
+
             // Update button states
-            githubAgentBtn.classList.toggle('active', mode === 'github');
-            travelAgentBtn.classList.toggle('active', mode === 'travel');
+            if (githubBtn && travelBtn) {
+                githubBtn.classList.toggle('active', mode === 'github');
+                travelBtn.classList.toggle('active', mode === 'travel');
+            }
 
             // Update indicator
-            agentIndicator.textContent = mode === 'github' ? 'GitHub Agent' : 'Travel Agent';
+            if (indicator) {
+                indicator.textContent = mode === 'github' ? 'GitHub Agent' : 'Travel Agent';
+            }
 
             // Reset conversation state when switching agents
             threadId = null;
@@ -612,6 +621,9 @@
         }
 
         function addSystemMessage(text) {
+            const messages = chatMessages || document.getElementById('chatMessages');
+            if (!messages) return;
+
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message agent';
 
@@ -623,37 +635,46 @@
             contentDiv.textContent = text;
 
             messageDiv.appendChild(contentDiv);
-            chatMessages.appendChild(messageDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            messages.appendChild(messageDiv);
+            messages.scrollTop = messages.scrollHeight;
         }
 
         // MCP Panel Management
         function toggleMcpPanel() {
-            mcpPanel.classList.toggle('show');
-            if (mcpPanel.classList.contains('show')) {
+            const panel = mcpPanel || document.getElementById('mcpPanel');
+            if (!panel) return;
+
+            panel.classList.toggle('show');
+            if (panel.classList.contains('show')) {
                 loadMcpTools();
             }
         }
 
         async function loadMcpTools() {
+            const toolsList = mcpToolsList || document.getElementById('mcpToolsList');
+            if (!toolsList) return;
+
             try {
-                mcpToolsList.innerHTML = '<p style="color: #999;">Loading...</p>';
+                toolsList.innerHTML = '<p style="color: #999;">Loading...</p>';
                 const response = await fetch('/api/mcp/discover');
                 const data = await response.json();
 
                 if (data.result && data.result.tools) {
                     displayMcpTools(data.result.tools);
                 } else {
-                    mcpToolsList.innerHTML = '<p style="color: #c33;">No tools found</p>';
+                    toolsList.innerHTML = '<p style="color: #c33;">No tools found</p>';
                 }
             } catch (error) {
                 console.error('Error loading MCP tools:', error);
-                mcpToolsList.innerHTML = '<p style="color: #c33;">Error loading tools</p>';
+                toolsList.innerHTML = '<p style="color: #c33;">Error loading tools</p>';
             }
         }
 
         function displayMcpTools(tools) {
-            mcpToolsList.innerHTML = '';
+            const toolsList = mcpToolsList || document.getElementById('mcpToolsList');
+            if (!toolsList) return;
+
+            toolsList.innerHTML = '';
             tools.forEach(tool => {
                 const toolDiv = document.createElement('div');
                 toolDiv.className = 'mcp-tool';
@@ -669,18 +690,24 @@
 
                 toolDiv.appendChild(nameDiv);
                 toolDiv.appendChild(descDiv);
-                mcpToolsList.appendChild(toolDiv);
+                toolsList.appendChild(toolDiv);
             });
         }
 
         function useMcpTool(tool) {
+            const input = messageInput || document.getElementById('messageInput');
+            if (!input) return;
+
             const prompt = `Use the ${tool.name} tool. ${tool.description || ''}`;
-            messageInput.value = prompt;
+            input.value = prompt;
             toggleMcpPanel();
-            messageInput.focus();
+            input.focus();
         }
 
         function addMessage(content, isUser) {
+            const messages = chatMessages || document.getElementById('chatMessages');
+            if (!messages) return;
+
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${isUser ? 'user' : 'agent'}`;
 
@@ -701,11 +728,14 @@
             }
 
             messageDiv.appendChild(contentDiv);
-            chatMessages.appendChild(messageDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            messages.appendChild(messageDiv);
+            messages.scrollTop = messages.scrollHeight;
         }
 
         function addLoadingIndicator() {
+            const messages = chatMessages || document.getElementById('chatMessages');
+            if (!messages) return;
+
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message agent';
             messageDiv.id = 'loadingIndicator';
@@ -715,8 +745,8 @@
             contentDiv.innerHTML = '<span class="loading"></span><span class="loading"></span><span class="loading"></span>';
 
             messageDiv.appendChild(contentDiv);
-            chatMessages.appendChild(messageDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            messages.appendChild(messageDiv);
+            messages.scrollTop = messages.scrollHeight;
         }
 
         function removeLoadingIndicator() {
@@ -727,11 +757,14 @@
         }
 
         function showError(message) {
+            const messages = chatMessages || document.getElementById('chatMessages');
+            if (!messages) return;
+
             const errorDiv = document.createElement('div');
             errorDiv.className = 'error-message';
             errorDiv.textContent = message;
-            chatMessages.appendChild(errorDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            messages.appendChild(errorDiv);
+            messages.scrollTop = messages.scrollHeight;
 
             setTimeout(() => errorDiv.remove(), 5000);
         }
