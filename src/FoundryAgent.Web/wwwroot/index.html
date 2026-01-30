@@ -507,7 +507,14 @@
         <div class="chat-messages" id="chatMessages">
             <div class="message agent">
                 <div class="message-content">
-                    Hello! I'm your Foundry Agent. How can I help you today?
+                    <p>Hello! I'm your <strong>Microsoft Learn Agent</strong> powered by Azure AI Foundry. I can help you find Azure documentation, tutorials, and best practices.</p>
+                    <p><strong>Try asking me:</strong></p>
+                    <ul>
+                        <li>What is Azure Functions?</li>
+                        <li>How do I create a Cosmos DB account?</li>
+                        <li>Explain Azure Container Apps deployment</li>
+                        <li>What are the best practices for Azure security?</li>
+                    </ul>
                 </div>
             </div>
         </div>
@@ -515,7 +522,7 @@
         <div class="chat-input-container">
             <input type="file" id="fileInput" multiple accept=".txt,.pdf,.doc,.docx,.csv,.json,.md" />
             <button id="attachButton" title="Attach file">📎</button>
-            <input type="text" id="messageInput" placeholder="Type your message here..." autocomplete="off" />
+            <input type="text" id="messageInput" placeholder="Ask about Azure documentation, tutorials, or best practices..." autocomplete="off" />
             <button id="sendButton">Send</button>
         </div>
     </div>
