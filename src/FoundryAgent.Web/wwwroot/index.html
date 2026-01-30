@@ -490,8 +490,8 @@
     <div class="chat-container">
         <div class="chat-header">
             <div class="agent-selector">
-                <button id="githubAgentBtn" class="agent-btn active" onclick="selectAgent('github')" title="Self-hosted with custom C# tools">
-                    🐙 GitHub Agent
+                <button id="learnAgentBtn" class="agent-btn active" onclick="selectAgent('learn')" title="Uses Microsoft Learn MCP for documentation">
+                    📚 Learn Agent
                 </button>
                 <button id="travelAgentBtn" class="agent-btn" onclick="selectAgent('travel')"
                     title="Foundry-hosted Margies Travel Agent">
@@ -500,7 +500,7 @@
             </div>
             <div class="header-title">
                 🤖 Foundry Agent Chat
-                <span class="agent-indicator" id="agentIndicator">GitHub Agent</span>
+                <span class="agent-indicator" id="agentIndicator">Learn Agent</span>
             </div>
             <button id="mcpButton" onclick="toggleMcpPanel()">🔌 MCP</button>
         </div>
@@ -525,10 +525,10 @@
         let threadId = null;
         let previousResponseId = null;
         let attachedFiles = [];
-        let currentAgentMode = 'github';
+        let currentAgentMode = 'learn';
         let chatMessages, messageInput, sendButton, fileInput, attachButton;
         let attachedFilesContainer, mcpPanel, mcpToolsList;
-        let githubAgentBtn, travelAgentBtn, agentIndicator;
+        let learnAgentBtn, travelAgentBtn, agentIndicator;
 
         // Configure marked with syntax highlighting (if available)
         if (typeof marked !== 'undefined') {
@@ -556,7 +556,7 @@
             attachedFilesContainer = document.getElementById('attachedFiles');
             mcpPanel = document.getElementById('mcpPanel');
             mcpToolsList = document.getElementById('mcpToolsList');
-            githubAgentBtn = document.getElementById('githubAgentBtn');
+            learnAgentBtn = document.getElementById('learnAgentBtn');
             travelAgentBtn = document.getElementById('travelAgentBtn');
             agentIndicator = document.getElementById('agentIndicator');
 
@@ -592,19 +592,19 @@
             currentAgentMode = mode;
 
             // Get elements (in case called before DOMContentLoaded)
-            const githubBtn = githubAgentBtn || document.getElementById('githubAgentBtn');
+            const learnBtn = learnAgentBtn || document.getElementById('learnAgentBtn');
             const travelBtn = travelAgentBtn || document.getElementById('travelAgentBtn');
             const indicator = agentIndicator || document.getElementById('agentIndicator');
 
             // Update button states
-            if (githubBtn && travelBtn) {
-                githubBtn.classList.toggle('active', mode === 'github');
+            if (learnBtn && travelBtn) {
+                learnBtn.classList.toggle('active', mode === 'learn');
                 travelBtn.classList.toggle('active', mode === 'travel');
             }
 
             // Update indicator
             if (indicator) {
-                indicator.textContent = mode === 'github' ? 'GitHub Agent' : 'Travel Agent';
+                indicator.textContent = mode === 'learn' ? 'Learn Agent' : 'Travel Agent';
             }
 
             // Reset conversation state when switching agents
@@ -612,9 +612,9 @@
             previousResponseId = null;
 
             // Show info message
-            const modeInfo = mode === 'github'
-                ? '🐙 Switched to GitHub Agent - Self-hosted with custom C# function tools (Weather, Calculator, etc.)'
-                : '✈️ Switched to Travel Agent - Foundry-hosted Margies Travel Agent with Bing grounding, Code Interpreter, and Azure AI Search';
+            const modeInfo = mode === 'learn'
+                ? '📚 Switched to Microsoft Learn Agent - Uses MCP (Model Context Protocol) to search Microsoft Learn documentation, tutorials, and Azure CLI commands'
+                : '✈️ Switched to Travel Agent - Requires a Foundry-hosted Agent Application. Check the configuration if this fails.';
             addSystemMessage(modeInfo);
 
             console.log('Agent mode:', mode);
@@ -863,27 +863,24 @@
 
                     addMessage(responseText, false);
                 } else {
-                    // Call the GitHub agent API (self-hosted with SDK)
-                    const formData = new FormData();
-                    formData.append('message', message || 'Please analyze the attached file(s).');
-                    if (threadId) {
-                        formData.append('threadId', threadId);
-                    }
-
-                    // Add files to FormData
-                    attachedFiles.forEach(file => {
-                        formData.append('files', file);
-                    });
-
-                    const response = await fetch('/api/chat/upload', {
+                    // Call the Microsoft Learn agent API via MCP (Model Context Protocol)
+                    const response = await fetch('/api/mcp/chat', {
                         method: 'POST',
-                        body: formData
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            message: message || 'Please analyze the attached file(s).',
+                            threadId: threadId,
+                            autoApproveMcpTools: true
+                        })
                     });
 
                     removeLoadingIndicator();
 
                     if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
+                        const errorData = await response.json().catch(() => ({}));
+                        throw new Error(errorData.detail || errorData.message || `HTTP error! status: ${response.status}`);
                     }
 
                     data = await response.json();

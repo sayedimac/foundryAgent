@@ -101,13 +101,23 @@ public class HostedAgentController : ControllerBase
                 Citations = citations.Count > 0 ? citations : null
             });
         }
+        catch (HttpRequestException ex) when (ex.Message.Contains("401") || ex.Message.Contains("Unauthorized"))
+        {
+            _logger.LogError(ex, "Authorization failed for hosted agent request. Check that the Azure CLI user has access to the Foundry application.");
+            return StatusCode(401, new ProblemDetails
+            {
+                Title = "Unauthorized",
+                Detail = "Authorization failed. Please ensure: 1) You are logged in with Azure CLI (az login), 2) The FoundryHostedAgent:ResponsesApiEndpoint is correct, 3) The application exists in the Azure AI Foundry project, 4) Your user has Cognitive Services OpenAI User role on the resource.",
+                Status = StatusCodes.Status401Unauthorized
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error processing hosted agent request");
             return StatusCode(500, new ProblemDetails
             {
                 Title = "Processing Error",
-                Detail = "An error occurred processing your request",
+                Detail = $"An error occurred processing your request: {ex.Message}",
                 Status = StatusCodes.Status500InternalServerError
             });
         }

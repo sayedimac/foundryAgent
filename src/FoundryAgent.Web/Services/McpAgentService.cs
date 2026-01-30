@@ -3,6 +3,7 @@ using System.Text.Json;
 using Azure;
 using Azure.AI.Agents.Persistent;
 using Azure.Identity;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using FoundryAgent.Web.Models;
 
@@ -28,7 +29,8 @@ public class McpAgentService
 
     public McpAgentService(
         IOptions<FoundryOptions> options,
-        ILogger<McpAgentService> logger)
+        ILogger<McpAgentService> logger,
+        IHostEnvironment environment)
     {
         _options = options.Value;
         _logger = logger;
@@ -39,10 +41,23 @@ public class McpAgentService
         if (string.IsNullOrWhiteSpace(_options.DeploymentName))
             throw new InvalidOperationException("Foundry:DeploymentName is required.");
 
-        // Create credentials
-        var credential = _options.UseDefaultAzureCredential
-            ? new DefaultAzureCredential()
-            : new AzureCliCredential() as Azure.Core.TokenCredential;
+        // Create credentials with optimization for local development
+        Azure.Core.TokenCredential credential;
+        if (_options.UseDefaultAzureCredential)
+        {
+            var credentialOptions = new DefaultAzureCredentialOptions();
+            if (environment.IsDevelopment())
+            {
+                // In development, skip Managed Identity to avoid timeout delays
+                credentialOptions.ExcludeManagedIdentityCredential = true;
+                _logger.LogDebug("MCP: Running in development mode, skipping Managed Identity credential");
+            }
+            credential = new DefaultAzureCredential(credentialOptions);
+        }
+        else
+        {
+            credential = new AzureCliCredential();
+        }
 
         // Create PersistentAgentsClient
         _agentClient = new PersistentAgentsClient(_options.ProjectEndpoint, credential);

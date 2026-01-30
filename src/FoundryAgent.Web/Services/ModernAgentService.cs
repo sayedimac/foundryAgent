@@ -2,9 +2,11 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Text.Json;
 using Azure.AI.Projects;
+using Azure.Core;
 using Azure.Identity;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using ChatResponse = FoundryAgent.Web.Models.ChatResponse;
 using FoundryOptions = FoundryAgent.Web.Models.FoundryOptions;
@@ -36,7 +38,8 @@ public class ModernAgentService
 
     public ModernAgentService(
         IOptions<FoundryOptions> options,
-        ILogger<ModernAgentService> logger)
+        ILogger<ModernAgentService> logger,
+        IHostEnvironment environment)
     {
         _options = options.Value;
         _logger = logger;
@@ -47,10 +50,23 @@ public class ModernAgentService
         if (string.IsNullOrWhiteSpace(_options.DeploymentName))
             throw new InvalidOperationException("Foundry:DeploymentName is required.");
 
-        // Create AIProjectClient - the modern, recommended approach
-        var credential = _options.UseDefaultAzureCredential
-            ? new DefaultAzureCredential()
-            : new AzureCliCredential() as Azure.Core.TokenCredential;
+        // Create credential with optimization for local development
+        TokenCredential credential;
+        if (_options.UseDefaultAzureCredential)
+        {
+            var credentialOptions = new DefaultAzureCredentialOptions();
+            if (environment.IsDevelopment())
+            {
+                // In development, skip Managed Identity to avoid timeout delays
+                credentialOptions.ExcludeManagedIdentityCredential = true;
+                _logger.LogDebug("Running in development mode, skipping Managed Identity credential");
+            }
+            credential = new DefaultAzureCredential(credentialOptions);
+        }
+        else
+        {
+            credential = new AzureCliCredential();
+        }
 
         _projectClient = new AIProjectClient(
             endpoint: new Uri(_options.ProjectEndpoint),

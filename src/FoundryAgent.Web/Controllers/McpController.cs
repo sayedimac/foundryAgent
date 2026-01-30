@@ -15,11 +15,16 @@ namespace FoundryAgent.Web.Controllers;
 public class McpController : ControllerBase
 {
     private readonly McpAgentService _mcpService;
+    private readonly McpGitHubService _mcpGitHubService;
     private readonly ILogger<McpController> _logger;
 
-    public McpController(McpAgentService mcpService, ILogger<McpController> logger)
+    public McpController(
+        McpAgentService mcpService,
+        McpGitHubService mcpGitHubService,
+        ILogger<McpController> logger)
     {
         _mcpService = mcpService;
+        _mcpGitHubService = mcpGitHubService;
         _logger = logger;
     }
 
@@ -39,6 +44,47 @@ public class McpController : ControllerBase
         {
             _logger.LogError(ex, "Error getting MCP server info");
             return StatusCode(500, new { error = "Failed to get MCP server info" });
+        }
+    }
+
+    /// <summary>
+    /// Discover available MCP tools from configured servers.
+    /// This endpoint is used by the frontend to populate the MCP tools panel.
+    /// </summary>
+    [HttpGet("discover")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult DiscoverTools()
+    {
+        try
+        {
+            var tools = _mcpGitHubService.GetAvailableTools();
+            var serverInfo = _mcpService.GetMcpServerInfo();
+
+            return Ok(new
+            {
+                jsonrpc = "2.0",
+                id = 1,
+                result = new
+                {
+                    tools = tools.Select(t => new
+                    {
+                        name = t.Name,
+                        description = t.Description,
+                        inputSchema = t.Parameters
+                    }),
+                    servers = serverInfo
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error discovering MCP tools");
+            return StatusCode(500, new
+            {
+                jsonrpc = "2.0",
+                id = 1,
+                error = new { code = -32603, message = ex.Message }
+            });
         }
     }
 

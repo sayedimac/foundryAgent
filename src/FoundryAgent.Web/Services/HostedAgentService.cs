@@ -5,6 +5,7 @@ using System.Text.Json;
 using Azure.Core;
 using Azure.Identity;
 using FoundryAgent.Web.Models;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 namespace FoundryAgent.Web.Services;
@@ -34,12 +35,27 @@ public class HostedAgentService
     public HostedAgentService(
         HttpClient httpClient,
         IOptions<HostedAgentOptions> options,
-        ILogger<HostedAgentService> logger)
+        ILogger<HostedAgentService> logger,
+        IHostEnvironment environment)
     {
         _httpClient = httpClient;
         _options = options.Value;
-        _credential = new DefaultAzureCredential();
         _logger = logger;
+
+        // Configure DefaultAzureCredential to skip Managed Identity in development
+        // This avoids the timeout when trying to connect to the Azure IMDS endpoint locally
+        var credentialOptions = new DefaultAzureCredentialOptions();
+        if (environment.IsDevelopment())
+        {
+            // In development, skip Managed Identity to avoid timeout delays
+            credentialOptions.ExcludeManagedIdentityCredential = true;
+            // Try Azure CLI first for local development
+            credentialOptions.ExcludeAzurePowerShellCredential = true;
+            credentialOptions.ExcludeVisualStudioCodeCredential = true;
+            credentialOptions.ExcludeInteractiveBrowserCredential = true;
+            _logger.LogDebug("Running in development mode, using Azure CLI credential");
+        }
+        _credential = new DefaultAzureCredential(credentialOptions);
 
         _logger.LogInformation(
             "HostedAgentService initialized for application: {AppName}, Endpoint: {Endpoint}",
