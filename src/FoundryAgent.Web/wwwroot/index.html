@@ -521,36 +521,71 @@
     </div>
 
     <script>
-        // Configure marked with syntax highlighting
-        marked.setOptions({
-            highlight: function (code, lang) {
-                if (lang && hljs.getLanguage(lang)) {
-                    try {
-                        return hljs.highlight(code, { language: lang }).value;
-                    } catch (err) { }
-                }
-                return hljs.highlightAuto(code).value;
-            },
-            breaks: true,
-            gfm: true
-        });
-
-        const chatMessages = document.getElementById('chatMessages');
-        const messageInput = document.getElementById('messageInput');
-        const sendButton = document.getElementById('sendButton');
-        const fileInput = document.getElementById('fileInput');
-        const attachButton = document.getElementById('attachButton');
-        const attachedFilesContainer = document.getElementById('attachedFiles');
-        const mcpPanel = document.getElementById('mcpPanel');
-        const mcpToolsList = document.getElementById('mcpToolsList');
-        const githubAgentBtn = document.getElementById('githubAgentBtn');
-        const travelAgentBtn = document.getElementById('travelAgentBtn');
-        const agentIndicator = document.getElementById('agentIndicator');
-
+        // Initialize variables first
         let threadId = null;
-        let previousResponseId = null; // For hosted agent conversation continuity
+        let previousResponseId = null;
         let attachedFiles = [];
-        let currentAgentMode = 'github'; // 'github' or 'travel'
+        let currentAgentMode = 'github';
+        let chatMessages, messageInput, sendButton, fileInput, attachButton;
+        let attachedFilesContainer, mcpPanel, mcpToolsList;
+        let githubAgentBtn, travelAgentBtn, agentIndicator;
+
+        // Configure marked with syntax highlighting (if available)
+        if (typeof marked !== 'undefined') {
+            marked.setOptions({
+                highlight: function (code, lang) {
+                    if (typeof hljs !== 'undefined' && lang && hljs.getLanguage(lang)) {
+                        try {
+                            return hljs.highlight(code, { language: lang }).value;
+                        } catch (err) { }
+                    }
+                    return typeof hljs !== 'undefined' ? hljs.highlightAuto(code).value : code;
+                },
+                breaks: true,
+                gfm: true
+            });
+        }
+
+        // Wait for DOM to be ready
+        document.addEventListener('DOMContentLoaded', function() {
+            chatMessages = document.getElementById('chatMessages');
+            messageInput = document.getElementById('messageInput');
+            sendButton = document.getElementById('sendButton');
+            fileInput = document.getElementById('fileInput');
+            attachButton = document.getElementById('attachButton');
+            attachedFilesContainer = document.getElementById('attachedFiles');
+            mcpPanel = document.getElementById('mcpPanel');
+            mcpToolsList = document.getElementById('mcpToolsList');
+            githubAgentBtn = document.getElementById('githubAgentBtn');
+            travelAgentBtn = document.getElementById('travelAgentBtn');
+            agentIndicator = document.getElementById('agentIndicator');
+
+            // Set up event listeners
+            attachButton.addEventListener('click', () => {
+                fileInput.click();
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                const files = Array.from(e.target.files);
+                if (files.length > 0) {
+                    attachedFiles.push(...files);
+                    updateAttachedFilesDisplay();
+                    fileInput.value = '';
+                }
+            });
+
+            sendButton.addEventListener('click', sendMessage);
+
+            messageInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+
+            // Focus input on load
+            messageInput.focus();
+        });
 
         // Agent Selection
         function selectAgent(mode) {
@@ -656,8 +691,13 @@
                 // User messages display as plain text
                 contentDiv.textContent = content;
             } else {
-                // Agent messages render as markdown
-                contentDiv.innerHTML = marked.parse(content);
+                // Agent messages render as markdown (if available) or plain text
+                if (typeof marked !== 'undefined') {
+                    contentDiv.innerHTML = marked.parse(content);
+                } else {
+                    // Fallback to plain text with basic formatting
+                    contentDiv.textContent = content;
+                }
             }
 
             messageDiv.appendChild(contentDiv);
@@ -835,31 +875,6 @@
                 messageInput.focus();
             }
         }
-
-        attachButton.addEventListener('click', () => {
-            fileInput.click();
-        });
-
-        fileInput.addEventListener('change', (e) => {
-            const files = Array.from(e.target.files);
-            if (files.length > 0) {
-                attachedFiles.push(...files);
-                updateAttachedFilesDisplay();
-                fileInput.value = ''; // Reset input to allow re-selecting the same file
-            }
-        });
-
-        sendButton.addEventListener('click', sendMessage);
-
-        messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
-
-        // Focus input on load
-        messageInput.focus();
     </script>
 </body>
 
