@@ -59,6 +59,7 @@ public class HostedAgentService
     {
         enabled = _options.Enabled,
         applicationName = _options.ApplicationName,
+        displayName = _options.DisplayName ?? _options.ApplicationName,
         apiVersion = _options.ApiVersion,
         endpoint = _options.Enabled ? "configured" : "not configured"
     };

@@ -490,17 +490,17 @@
     <div class="chat-container">
         <div class="chat-header">
             <div class="agent-selector">
-                <button id="sdkAgentBtn" class="agent-btn active" onclick="selectAgent('sdk')" title="Custom C# tools">
-                    🛠️ SDK Agent
+                <button id="githubAgentBtn" class="agent-btn active" onclick="selectAgent('github')" title="Self-hosted with custom C# tools">
+                    🐙 GitHub Agent
                 </button>
-                <button id="hostedAgentBtn" class="agent-btn" onclick="selectAgent('hosted')"
-                    title="Bing, Code Interpreter">
-                    ☁️ Hosted Agent
+                <button id="travelAgentBtn" class="agent-btn" onclick="selectAgent('travel')"
+                    title="Foundry-hosted Margies Travel Agent">
+                    ✈️ Travel Agent
                 </button>
             </div>
             <div class="header-title">
                 🤖 Foundry Agent Chat
-                <span class="agent-indicator" id="agentIndicator">SDK Mode</span>
+                <span class="agent-indicator" id="agentIndicator">GitHub Agent</span>
             </div>
             <button id="mcpButton" onclick="toggleMcpPanel()">🔌 MCP</button>
         </div>
@@ -543,34 +543,34 @@
         const attachedFilesContainer = document.getElementById('attachedFiles');
         const mcpPanel = document.getElementById('mcpPanel');
         const mcpToolsList = document.getElementById('mcpToolsList');
-        const sdkAgentBtn = document.getElementById('sdkAgentBtn');
-        const hostedAgentBtn = document.getElementById('hostedAgentBtn');
+        const githubAgentBtn = document.getElementById('githubAgentBtn');
+        const travelAgentBtn = document.getElementById('travelAgentBtn');
         const agentIndicator = document.getElementById('agentIndicator');
 
         let threadId = null;
         let previousResponseId = null; // For hosted agent conversation continuity
         let attachedFiles = [];
-        let currentAgentMode = 'sdk'; // 'sdk' or 'hosted'
+        let currentAgentMode = 'github'; // 'github' or 'travel'
 
         // Agent Selection
         function selectAgent(mode) {
             currentAgentMode = mode;
 
             // Update button states
-            sdkAgentBtn.classList.toggle('active', mode === 'sdk');
-            hostedAgentBtn.classList.toggle('active', mode === 'hosted');
+            githubAgentBtn.classList.toggle('active', mode === 'github');
+            travelAgentBtn.classList.toggle('active', mode === 'travel');
 
             // Update indicator
-            agentIndicator.textContent = mode === 'sdk' ? 'SDK Mode' : 'Hosted Mode';
+            agentIndicator.textContent = mode === 'github' ? 'GitHub Agent' : 'Travel Agent';
 
             // Reset conversation state when switching agents
             threadId = null;
             previousResponseId = null;
 
             // Show info message
-            const modeInfo = mode === 'sdk'
-                ? '🛠️ Switched to SDK Agent - Custom C# function tools (Weather, Calculator, etc.)'
-                : '☁️ Switched to Hosted Agent - Bing grounding, Code Interpreter, Azure AI Search';
+            const modeInfo = mode === 'github'
+                ? '🐙 Switched to GitHub Agent - Self-hosted with custom C# function tools (Weather, Calculator, etc.)'
+                : '✈️ Switched to Travel Agent - Foundry-hosted Margies Travel Agent with Bing grounding, Code Interpreter, and Azure AI Search';
             addSystemMessage(modeInfo);
 
             console.log('Agent mode:', mode);
@@ -752,8 +752,8 @@
             try {
                 let data;
 
-                if (currentAgentMode === 'hosted') {
-                    // Call the hosted agent API
+                if (currentAgentMode === 'travel') {
+                    // Call the hosted travel agent API (Margies Travel Agent)
                     const response = await fetch('/api/hosted-agent', {
                         method: 'POST',
                         headers: {
@@ -790,7 +790,7 @@
 
                     addMessage(responseText, false);
                 } else {
-                    // Call the SDK agent API (existing behavior)
+                    // Call the GitHub agent API (self-hosted with SDK)
                     const formData = new FormData();
                     formData.append('message', message || 'Please analyze the attached file(s).');
                     if (threadId) {

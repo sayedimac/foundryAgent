@@ -32,10 +32,11 @@ public class HostedAgentController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public ActionResult GetInfo()
     {
+        var agentInfo = _hostedAgentService.GetInfo();
         return Ok(new
         {
-            name = "Hosted Foundry Agent",
-            description = "Pre-deployed agent configured in Azure AI Foundry portal",
+            name = "Foundry Hosted Agent",
+            description = "Pre-deployed agent configured in Azure AI Foundry portal (e.g., Margies Travel Agent)",
             features = new[]
             {
                 "Bing Search Grounding",
@@ -43,7 +44,7 @@ public class HostedAgentController : ControllerBase
                 "Azure AI Search",
                 "File Search"
             },
-            configuration = _hostedAgentService.GetInfo()
+            configuration = agentInfo
         });
     }
 
