@@ -15,6 +15,8 @@ namespace FoundryAgent.Web.Services;
 /// Modern Agent Service using AIProjectClient from Microsoft Agent Framework.
 /// This service demonstrates the recommended approach for building Azure AI Foundry agents.
 /// 
+/// This is used for the self-hosted "GitHub Agent" that runs in the application with custom C# tools.
+/// 
 /// Features showcased:
 /// - AIProjectClient for agent management (recommended over PersistentAgentsClient)
 /// - Function Tools (custom functions the agent can call)

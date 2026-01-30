@@ -490,17 +490,17 @@
     <div class="chat-container">
         <div class="chat-header">
             <div class="agent-selector">
-                <button id="sdkAgentBtn" class="agent-btn active" onclick="selectAgent('sdk')" title="Custom C# tools">
-                    🛠️ SDK Agent
+                <button id="githubAgentBtn" class="agent-btn active" onclick="selectAgent('github')" title="Self-hosted with custom C# tools">
+                    🐙 GitHub Agent
                 </button>
-                <button id="hostedAgentBtn" class="agent-btn" onclick="selectAgent('hosted')"
-                    title="Bing, Code Interpreter">
-                    ☁️ Hosted Agent
+                <button id="travelAgentBtn" class="agent-btn" onclick="selectAgent('travel')"
+                    title="Foundry-hosted Margies Travel Agent">
+                    ✈️ Travel Agent
                 </button>
             </div>
             <div class="header-title">
                 🤖 Foundry Agent Chat
-                <span class="agent-indicator" id="agentIndicator">SDK Mode</span>
+                <span class="agent-indicator" id="agentIndicator">GitHub Agent</span>
             </div>
             <button id="mcpButton" onclick="toggleMcpPanel()">🔌 MCP</button>
         </div>
@@ -521,62 +521,109 @@
     </div>
 
     <script>
-        // Configure marked with syntax highlighting
-        marked.setOptions({
-            highlight: function (code, lang) {
-                if (lang && hljs.getLanguage(lang)) {
-                    try {
-                        return hljs.highlight(code, { language: lang }).value;
-                    } catch (err) { }
-                }
-                return hljs.highlightAuto(code).value;
-            },
-            breaks: true,
-            gfm: true
-        });
-
-        const chatMessages = document.getElementById('chatMessages');
-        const messageInput = document.getElementById('messageInput');
-        const sendButton = document.getElementById('sendButton');
-        const fileInput = document.getElementById('fileInput');
-        const attachButton = document.getElementById('attachButton');
-        const attachedFilesContainer = document.getElementById('attachedFiles');
-        const mcpPanel = document.getElementById('mcpPanel');
-        const mcpToolsList = document.getElementById('mcpToolsList');
-        const sdkAgentBtn = document.getElementById('sdkAgentBtn');
-        const hostedAgentBtn = document.getElementById('hostedAgentBtn');
-        const agentIndicator = document.getElementById('agentIndicator');
-
+        // Initialize variables first
         let threadId = null;
-        let previousResponseId = null; // For hosted agent conversation continuity
+        let previousResponseId = null;
         let attachedFiles = [];
-        let currentAgentMode = 'sdk'; // 'sdk' or 'hosted'
+        let currentAgentMode = 'github';
+        let chatMessages, messageInput, sendButton, fileInput, attachButton;
+        let attachedFilesContainer, mcpPanel, mcpToolsList;
+        let githubAgentBtn, travelAgentBtn, agentIndicator;
+
+        // Configure marked with syntax highlighting (if available)
+        if (typeof marked !== 'undefined') {
+            marked.setOptions({
+                highlight: function (code, lang) {
+                    if (typeof hljs !== 'undefined' && lang && hljs.getLanguage(lang)) {
+                        try {
+                            return hljs.highlight(code, { language: lang }).value;
+                        } catch (err) { }
+                    }
+                    return typeof hljs !== 'undefined' ? hljs.highlightAuto(code).value : code;
+                },
+                breaks: true,
+                gfm: true
+            });
+        }
+
+        // Wait for DOM to be ready
+        document.addEventListener('DOMContentLoaded', function() {
+            chatMessages = document.getElementById('chatMessages');
+            messageInput = document.getElementById('messageInput');
+            sendButton = document.getElementById('sendButton');
+            fileInput = document.getElementById('fileInput');
+            attachButton = document.getElementById('attachButton');
+            attachedFilesContainer = document.getElementById('attachedFiles');
+            mcpPanel = document.getElementById('mcpPanel');
+            mcpToolsList = document.getElementById('mcpToolsList');
+            githubAgentBtn = document.getElementById('githubAgentBtn');
+            travelAgentBtn = document.getElementById('travelAgentBtn');
+            agentIndicator = document.getElementById('agentIndicator');
+
+            // Set up event listeners
+            attachButton.addEventListener('click', () => {
+                fileInput.click();
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                const files = Array.from(e.target.files);
+                if (files.length > 0) {
+                    attachedFiles.push(...files);
+                    updateAttachedFilesDisplay();
+                    fileInput.value = '';
+                }
+            });
+
+            sendButton.addEventListener('click', sendMessage);
+
+            messageInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+
+            // Focus input on load
+            messageInput.focus();
+        });
 
         // Agent Selection
         function selectAgent(mode) {
             currentAgentMode = mode;
 
+            // Get elements (in case called before DOMContentLoaded)
+            const githubBtn = githubAgentBtn || document.getElementById('githubAgentBtn');
+            const travelBtn = travelAgentBtn || document.getElementById('travelAgentBtn');
+            const indicator = agentIndicator || document.getElementById('agentIndicator');
+
             // Update button states
-            sdkAgentBtn.classList.toggle('active', mode === 'sdk');
-            hostedAgentBtn.classList.toggle('active', mode === 'hosted');
+            if (githubBtn && travelBtn) {
+                githubBtn.classList.toggle('active', mode === 'github');
+                travelBtn.classList.toggle('active', mode === 'travel');
+            }
 
             // Update indicator
-            agentIndicator.textContent = mode === 'sdk' ? 'SDK Mode' : 'Hosted Mode';
+            if (indicator) {
+                indicator.textContent = mode === 'github' ? 'GitHub Agent' : 'Travel Agent';
+            }
 
             // Reset conversation state when switching agents
             threadId = null;
             previousResponseId = null;
 
             // Show info message
-            const modeInfo = mode === 'sdk'
-                ? '🛠️ Switched to SDK Agent - Custom C# function tools (Weather, Calculator, etc.)'
-                : '☁️ Switched to Hosted Agent - Bing grounding, Code Interpreter, Azure AI Search';
+            const modeInfo = mode === 'github'
+                ? '🐙 Switched to GitHub Agent - Self-hosted with custom C# function tools (Weather, Calculator, etc.)'
+                : '✈️ Switched to Travel Agent - Foundry-hosted Margies Travel Agent with Bing grounding, Code Interpreter, and Azure AI Search';
             addSystemMessage(modeInfo);
 
             console.log('Agent mode:', mode);
         }
 
         function addSystemMessage(text) {
+            const messages = chatMessages || document.getElementById('chatMessages');
+            if (!messages) return;
+
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message agent';
 
@@ -588,37 +635,46 @@
             contentDiv.textContent = text;
 
             messageDiv.appendChild(contentDiv);
-            chatMessages.appendChild(messageDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            messages.appendChild(messageDiv);
+            messages.scrollTop = messages.scrollHeight;
         }
 
         // MCP Panel Management
         function toggleMcpPanel() {
-            mcpPanel.classList.toggle('show');
-            if (mcpPanel.classList.contains('show')) {
+            const panel = mcpPanel || document.getElementById('mcpPanel');
+            if (!panel) return;
+
+            panel.classList.toggle('show');
+            if (panel.classList.contains('show')) {
                 loadMcpTools();
             }
         }
 
         async function loadMcpTools() {
+            const toolsList = mcpToolsList || document.getElementById('mcpToolsList');
+            if (!toolsList) return;
+
             try {
-                mcpToolsList.innerHTML = '<p style="color: #999;">Loading...</p>';
+                toolsList.innerHTML = '<p style="color: #999;">Loading...</p>';
                 const response = await fetch('/api/mcp/discover');
                 const data = await response.json();
 
                 if (data.result && data.result.tools) {
                     displayMcpTools(data.result.tools);
                 } else {
-                    mcpToolsList.innerHTML = '<p style="color: #c33;">No tools found</p>';
+                    toolsList.innerHTML = '<p style="color: #c33;">No tools found</p>';
                 }
             } catch (error) {
                 console.error('Error loading MCP tools:', error);
-                mcpToolsList.innerHTML = '<p style="color: #c33;">Error loading tools</p>';
+                toolsList.innerHTML = '<p style="color: #c33;">Error loading tools</p>';
             }
         }
 
         function displayMcpTools(tools) {
-            mcpToolsList.innerHTML = '';
+            const toolsList = mcpToolsList || document.getElementById('mcpToolsList');
+            if (!toolsList) return;
+
+            toolsList.innerHTML = '';
             tools.forEach(tool => {
                 const toolDiv = document.createElement('div');
                 toolDiv.className = 'mcp-tool';
@@ -634,18 +690,24 @@
 
                 toolDiv.appendChild(nameDiv);
                 toolDiv.appendChild(descDiv);
-                mcpToolsList.appendChild(toolDiv);
+                toolsList.appendChild(toolDiv);
             });
         }
 
         function useMcpTool(tool) {
+            const input = messageInput || document.getElementById('messageInput');
+            if (!input) return;
+
             const prompt = `Use the ${tool.name} tool. ${tool.description || ''}`;
-            messageInput.value = prompt;
+            input.value = prompt;
             toggleMcpPanel();
-            messageInput.focus();
+            input.focus();
         }
 
         function addMessage(content, isUser) {
+            const messages = chatMessages || document.getElementById('chatMessages');
+            if (!messages) return;
+
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${isUser ? 'user' : 'agent'}`;
 
@@ -656,16 +718,24 @@
                 // User messages display as plain text
                 contentDiv.textContent = content;
             } else {
-                // Agent messages render as markdown
-                contentDiv.innerHTML = marked.parse(content);
+                // Agent messages render as markdown (if available) or plain text
+                if (typeof marked !== 'undefined') {
+                    contentDiv.innerHTML = marked.parse(content);
+                } else {
+                    // Fallback to plain text with basic formatting
+                    contentDiv.textContent = content;
+                }
             }
 
             messageDiv.appendChild(contentDiv);
-            chatMessages.appendChild(messageDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            messages.appendChild(messageDiv);
+            messages.scrollTop = messages.scrollHeight;
         }
 
         function addLoadingIndicator() {
+            const messages = chatMessages || document.getElementById('chatMessages');
+            if (!messages) return;
+
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message agent';
             messageDiv.id = 'loadingIndicator';
@@ -675,8 +745,8 @@
             contentDiv.innerHTML = '<span class="loading"></span><span class="loading"></span><span class="loading"></span>';
 
             messageDiv.appendChild(contentDiv);
-            chatMessages.appendChild(messageDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            messages.appendChild(messageDiv);
+            messages.scrollTop = messages.scrollHeight;
         }
 
         function removeLoadingIndicator() {
@@ -687,11 +757,14 @@
         }
 
         function showError(message) {
+            const messages = chatMessages || document.getElementById('chatMessages');
+            if (!messages) return;
+
             const errorDiv = document.createElement('div');
             errorDiv.className = 'error-message';
             errorDiv.textContent = message;
-            chatMessages.appendChild(errorDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            messages.appendChild(errorDiv);
+            messages.scrollTop = messages.scrollHeight;
 
             setTimeout(() => errorDiv.remove(), 5000);
         }
@@ -752,8 +825,8 @@
             try {
                 let data;
 
-                if (currentAgentMode === 'hosted') {
-                    // Call the hosted agent API
+                if (currentAgentMode === 'travel') {
+                    // Call the hosted travel agent API (Margies Travel Agent)
                     const response = await fetch('/api/hosted-agent', {
                         method: 'POST',
                         headers: {
@@ -790,7 +863,7 @@
 
                     addMessage(responseText, false);
                 } else {
-                    // Call the SDK agent API (existing behavior)
+                    // Call the GitHub agent API (self-hosted with SDK)
                     const formData = new FormData();
                     formData.append('message', message || 'Please analyze the attached file(s).');
                     if (threadId) {
@@ -835,31 +908,6 @@
                 messageInput.focus();
             }
         }
-
-        attachButton.addEventListener('click', () => {
-            fileInput.click();
-        });
-
-        fileInput.addEventListener('change', (e) => {
-            const files = Array.from(e.target.files);
-            if (files.length > 0) {
-                attachedFiles.push(...files);
-                updateAttachedFilesDisplay();
-                fileInput.value = ''; // Reset input to allow re-selecting the same file
-            }
-        });
-
-        sendButton.addEventListener('click', sendMessage);
-
-        messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
-
-        // Focus input on load
-        messageInput.focus();
     </script>
 </body>
 

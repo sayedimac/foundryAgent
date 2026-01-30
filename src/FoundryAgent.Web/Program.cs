@@ -8,13 +8,13 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
 
-// Configure Foundry options for SDK-based agent
+// Configure LocalHostedAgent options (GitHub Agent - self-hosted with SDK)
 builder.Services.Configure<FoundryOptions>(
-    builder.Configuration.GetSection("Foundry"));
+    builder.Configuration.GetSection("LocalHostedAgent"));
 
-// Configure Hosted Agent options for pre-deployed agents
+// Configure FoundryHostedAgent options (Travel Agent - hosted in Foundry portal)
 builder.Services.Configure<HostedAgentOptions>(
-    builder.Configuration.GetSection("HostedAgent"));
+    builder.Configuration.GetSection("FoundryHostedAgent"));
 
 // Add OpenTelemetry tracing for observability
 builder.Services.AddFoundryTelemetry(builder.Configuration);

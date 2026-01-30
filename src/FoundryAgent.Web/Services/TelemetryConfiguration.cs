@@ -28,7 +28,7 @@ public static class TelemetryConfiguration
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var options = configuration.GetSection("Foundry").Get<FoundryOptions>();
+        var options = configuration.GetSection("LocalHostedAgent").Get<FoundryOptions>();
 
         if (options?.EnableTelemetry != true)
         {

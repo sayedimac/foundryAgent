@@ -7,7 +7,7 @@ namespace FoundryAgent.Web.Models;
 public class HostedAgentOptions
 {
     /// <summary>
-    /// The name of the agent application (e.g., "GitHub").
+    /// The name of the agent application (e.g., "Margies Travel Agent", "GitHub").
     /// </summary>
     public string ApplicationName { get; set; } = string.Empty;
 
@@ -26,4 +26,10 @@ public class HostedAgentOptions
     /// Whether this hosted agent is enabled.
     /// </summary>
     public bool Enabled => !string.IsNullOrWhiteSpace(ResponsesApiEndpoint);
+
+    /// <summary>
+    /// Display name for the UI (e.g., "Travel Agent", "GitHub Agent").
+    /// If not specified, ApplicationName will be used.
+    /// </summary>
+    public string? DisplayName { get; set; }
 }
