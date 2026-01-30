@@ -4,18 +4,29 @@
 
 ## 🌟 Features Demonstrated
 
-This demo showcases the following Azure AI Foundry Agent SDK capabilities:
+This demo showcases two types of Azure AI Foundry agents with seamless toggling in the UI:
+
+### 🐙 GitHub Agent (Self-Hosted)
+A self-hosted agent running locally in the ASP.NET Core application using the Microsoft Agent Framework.
 
 | Feature | Description | Status |
 |---------|-------------|--------|
 | **AIProjectClient** | Modern, recommended approach for creating agents | ✅ Enabled |
-| **Function Tools** | Custom functions the agent can call (GetWeather, Calculate, etc.) | ✅ Enabled |
+| **Function Tools** | Custom C# functions (GetWeather, Calculate, SearchProducts, GetCurrentTime) | ✅ Enabled |
 | **OpenTelemetry Tracing** | Observability with distributed tracing | ✅ Enabled |
 | **Streaming Responses** | Real-time SSE streaming | ✅ Enabled |
 | **Multi-turn Conversations** | Thread-based conversation history | ✅ Enabled |
-| **Code Interpreter** | Execute Python code | 🔧 Available |
-| **Bing Grounding** | Web search integration | 🔧 Available |
-| **Azure AI Search** | Enterprise knowledge base | 🔧 Available |
+
+### ✈️ Travel Agent (Foundry-Hosted)
+A pre-deployed agent configured in the Azure AI Foundry portal (e.g., "Margies Travel Agent") accessed via the Responses API.
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| **Foundry Hosted Agent** | Agent deployed and managed in Azure AI Foundry portal | 🔧 Available |
+| **Bing Grounding** | Web search integration configured in portal | 🔧 Available |
+| **Code Interpreter** | Execute Python code configured in portal | 🔧 Available |
+| **Azure AI Search** | Enterprise knowledge base configured in portal | 🔧 Available |
+| **Multi-turn Conversations** | Conversation continuity using previous_response_id | ✅ Enabled |
 
 ## 📋 Prerequisites
 
@@ -46,11 +57,21 @@ dotnet add package OpenTelemetry.Instrumentation.Http
 
 ## ⚙️ Configuration
 
+The application supports two agent configurations that can be toggled in the UI:
+
+### 1. GitHub Agent (Self-Hosted) - `LocalHostedAgent`
+
+This agent runs locally in your application with custom C# function tools.
+
+### 2. Travel Agent (Foundry-Hosted) - `FoundryHostedAgent`
+
+This agent is pre-deployed in the Azure AI Foundry portal (e.g., "Margies Travel Agent").
+
 ### appsettings.json
 
 ```json
 {
-  "Foundry": {
+  "LocalHostedAgent": {
     "ProjectEndpoint": "https://your-resource.services.ai.azure.com/api/projects/your-project",
     "DeploymentName": "gpt-4o",
     "UseDefaultAzureCredential": true,
@@ -59,7 +80,14 @@ dotnet add package OpenTelemetry.Instrumentation.Http
     "AzureAISearchConnectionId": "",
     "AzureAISearchIndexName": "",
     "EnableTelemetry": true,
-    "OtlpEndpoint": ""
+    "OtlpEndpoint": "",
+    "ApplicationInsightsConnectionString": ""
+  },
+  "FoundryHostedAgent": {
+    "ApplicationName": "Margies Travel Agent",
+    "DisplayName": "Travel Agent",
+    "ResponsesApiEndpoint": "https://your-resource.services.ai.azure.com/api/projects/your-project/applications/your-app/protocols/openai/responses",
+    "ApiVersion": "2025-11-15-preview"
   }
 }
 ```
@@ -67,19 +95,23 @@ dotnet add package OpenTelemetry.Instrumentation.Http
 ### Environment Variables
 
 ```powershell
-# Required
-$env:Foundry__ProjectEndpoint = "https://your-resource.services.ai.azure.com/api/projects/your-project"
-$env:Foundry__DeploymentName = "gpt-4o"
+# For GitHub Agent (Self-Hosted)
+$env:LocalHostedAgent__ProjectEndpoint = "https://your-resource.services.ai.azure.com/api/projects/your-project"
+$env:LocalHostedAgent__DeploymentName = "gpt-4o"
 
-# Optional - for Bing grounding
-$env:Foundry__BingConnectionId = "your-bing-connection-id"
+# Optional - for Bing grounding in GitHub Agent
+$env:LocalHostedAgent__BingConnectionId = "your-bing-connection-id"
 
-# Optional - for Azure AI Search
-$env:Foundry__AzureAISearchConnectionId = "your-search-connection-id"
-$env:Foundry__AzureAISearchIndexName = "your-index-name"
+# Optional - for Azure AI Search in GitHub Agent
+$env:LocalHostedAgent__AzureAISearchConnectionId = "your-search-connection-id"
+$env:LocalHostedAgent__AzureAISearchIndexName = "your-index-name"
+
+# For Travel Agent (Foundry-Hosted)
+$env:FoundryHostedAgent__ApplicationName = "Margies Travel Agent"
+$env:FoundryHostedAgent__ResponsesApiEndpoint = "https://your-resource.services.ai.azure.com/api/projects/your-project/applications/your-app/protocols/openai/responses"
 
 # Optional - for OTLP tracing
-$env:Foundry__OtlpEndpoint = "http://localhost:4317"
+$env:LocalHostedAgent__OtlpEndpoint = "http://localhost:4317"
 ```
 
 ## 🚀 Running the Application
@@ -95,6 +127,24 @@ dotnet run --project src/FoundryAgent.Web
 # - HTTP:  http://localhost:5116
 # - HTTPS: https://localhost:7116
 ```
+
+### Using the Web UI
+
+1. Open your browser to `http://localhost:5116`
+2. Use the toggle buttons at the top to switch between agents:
+   - **🐙 GitHub Agent** - Self-hosted with custom C# function tools
+   - **✈️ Travel Agent** - Foundry-hosted Margies Travel Agent with Bing grounding and Azure AI Search
+3. The agent indicator will update to show which agent is active
+4. Start chatting! Each agent maintains its own conversation history
+
+![Agent Toggle UI](https://github.com/user-attachments/assets/527f2275-989e-4380-889d-f7efa3dfb984)
+
+*The UI showing both agent options with the GitHub Agent selected*
+
+![Travel Agent Active](https://github.com/user-attachments/assets/4141da62-7d0e-4726-bf92-e8da1a17eb13)
+
+*Switched to Travel Agent - system message confirms the switch*
+
 
 ## 🔌 API Endpoints
 
