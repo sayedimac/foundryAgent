@@ -25,8 +25,8 @@ public class McpGitHubService
         {
             new McpToolDefinition
             {
-                Name = "search_repositories",
-                Description = "Search for GitHub repositories using GitHub search syntax in 'query' (e.g., 'language:javascript pushed:>=2026-01-01'). Do not pass sort-only strings like 'sort:updated-desc' as the query.",
+                Name = "microsoft_docs_search",
+                Description = "Search Microsoft documentation on MSlearn",
                 Parameters = new
                 {
                     type = "object",
@@ -39,8 +39,8 @@ public class McpGitHubService
             },
             new McpToolDefinition
             {
-                Name = "get_file_contents",
-                Description = "Get the contents of a file from a GitHub repository",
+                Name = "microsoft_docs_fetch",
+                Description = "Fetch a file from a Microsoft documentation repository on MSlearn",
                 Parameters = new
                 {
                     type = "object",
@@ -55,70 +55,70 @@ public class McpGitHubService
             },
             new McpToolDefinition
             {
-                Name = "create_or_update_file",
-                Description = "Create or update a file in a GitHub repository",
+                Name = "microsoft_docs_contribute",
+                Description = "Contribute to Microsoft Learn documentation by creating or updating content",
                 Parameters = new
                 {
                     type = "object",
                     properties = new
                     {
-                        owner = new { type = "string", description = "Repository owner" },
-                        repo = new { type = "string", description = "Repository name" },
-                        path = new { type = "string", description = "File path" },
-                        content = new { type = "string", description = "File content" },
-                        message = new { type = "string", description = "Commit message" },
-                        branch = new { type = "string", description = "Branch name" }
+                        owner = new { type = "string", description = "Documentation repository owner (e.g., MicrosoftDocs)" },
+                        repo = new { type = "string", description = "Documentation repository name (e.g., azure-docs)" },
+                        path = new { type = "string", description = "Path to the documentation file" },
+                        content = new { type = "string", description = "Updated documentation content" },
+                        message = new { type = "string", description = "Description of documentation changes" },
+                        branch = new { type = "string", description = "Branch for the contribution" }
                     },
                     required = new[] { "owner", "repo", "path", "content", "message", "branch" }
                 }
             },
             new McpToolDefinition
             {
-                Name = "list_issues",
-                Description = "List issues in a GitHub repository",
+                Name = "microsoft_docs_issues",
+                Description = "List open documentation issues on Microsoft Learn repos",
                 Parameters = new
                 {
                     type = "object",
                     properties = new
                     {
-                        owner = new { type = "string", description = "Repository owner" },
-                        repo = new { type = "string", description = "Repository name" }
+                        owner = new { type = "string", description = "Documentation repository owner (e.g., MicrosoftDocs)" },
+                        repo = new { type = "string", description = "Documentation repository name (e.g., azure-docs)" }
                     },
                     required = new[] { "owner", "repo" }
                 }
             },
             new McpToolDefinition
             {
-                Name = "create_issue",
-                Description = "Create a new issue in a GitHub repository",
+                Name = "microsoft_docs_report_issue",
+                Description = "Report an issue or suggest improvements for Microsoft Learn documentation",
                 Parameters = new
                 {
                     type = "object",
                     properties = new
                     {
-                        owner = new { type = "string", description = "Repository owner" },
-                        repo = new { type = "string", description = "Repository name" },
-                        title = new { type = "string", description = "Issue title" },
-                        body = new { type = "string", description = "Issue body" }
+                        owner = new { type = "string", description = "Documentation repository owner (e.g., MicrosoftDocs)" },
+                        repo = new { type = "string", description = "Documentation repository name (e.g., azure-docs)" },
+                        title = new { type = "string", description = "Issue title describing the documentation problem" },
+                        body = new { type = "string", description = "Detailed description of the issue or suggestion" }
                     },
                     required = new[] { "owner", "repo", "title" }
                 }
             },
             new McpToolDefinition
             {
-                Name = "create_pull_request",
-                Description = "Create a new pull request in a GitHub repository",
+                Name = "microsoft_docs_submit_pr",
+                Description = "Submit a pull request to contribute documentation updates to Microsoft Learn",
                 Parameters = new
                 {
                     type = "object",
                     properties = new
                     {
-                        owner = new { type = "string", description = "Repository owner" },
-                        repo = new { type = "string", description = "Repository name" },
-                        title = new { type = "string", description = "PR title" },
-                        body = new { type = "string", description = "PR body" },
-                        head = new { type = "string", description = "Source branch" },
-                        @base = new { type = "string", description = "Target branch" }
+                        owner = new { type = "string", description = "Documentation repository owner (e.g., MicrosoftDocs)" },
+                        repo = new { type = "string", description = "Documentation repository name (e.g., azure-docs)" },
+                        title = new { type = "string", description = "Pull request title describing the documentation update" },
+                        body = new { type = "string", description = "Description of the documentation changes" },
+                        head = new { type = "string", description = "Source branch with your changes" },
+                        @base = new { type = "string", description = "Target branch (usually 'main' or 'live')" }
                     },
                     required = new[] { "owner", "repo", "title", "head", "base" }
                 }

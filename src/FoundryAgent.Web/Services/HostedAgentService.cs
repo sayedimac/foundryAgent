@@ -237,9 +237,9 @@ public class HostedAgentService
         bool stream,
         CancellationToken cancellationToken)
     {
-        // Get Azure AD token for Cognitive Services
+        // Get Azure AD token for Azure AI Foundry (uses https://ai.azure.com audience)
         var tokenResponse = await _credential.GetTokenAsync(
-            new TokenRequestContext(["https://cognitiveservices.azure.com/.default"]),
+            new TokenRequestContext(["https://ai.azure.com/.default"]),
             cancellationToken);
 
         var endpoint = _options.ResponsesApiEndpoint;
